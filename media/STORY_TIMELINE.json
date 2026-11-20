@@ -1,0 +1,488 @@
+{
+  "duration": 174,
+  "voice_rate": 0.94,
+  "scenes": [
+    {
+      "id": 1,
+      "name": "Cold Open",
+      "start": 0,
+      "end": 8,
+      "source_in": 0,
+      "source_out": 5.245,
+      "narration": "In this town, there was a shop that sold second chances. I found out too late what they cost.",
+      "captions": [
+        [
+          0.0,
+          1.894,
+          "In this town, there was a shop that"
+        ],
+        [
+          1.894,
+          3.511,
+          "sold second chances."
+        ],
+        [
+          3.511,
+          5.58,
+          "I found out too late what they cost."
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "name": "The Moment I Failed Him",
+      "start": 8,
+      "end": 23,
+      "source_in": 5.345,
+      "source_out": 15.625,
+      "narration": "It started the day someone spread a lie about my best friend, Lucas. Our whole class laughed. I knew the truth. Lucas looked straight at me, waiting for me to say something. I didn't.",
+      "captions": [
+        [
+          8.048,
+          9.995,
+          "It started the day someone spread a lie"
+        ],
+        [
+          9.995,
+          12.144,
+          "about my best friend, Lucas."
+        ],
+        [
+          12.144,
+          14.016,
+          "Our whole class laughed."
+        ],
+        [
+          14.016,
+          15.207,
+          "I knew the truth."
+        ],
+        [
+          15.207,
+          17.324,
+          "Lucas looked straight at me, waiting for me"
+        ],
+        [
+          17.324,
+          18.346,
+          "to say something."
+        ],
+        [
+          18.346,
+          18.936,
+          "I didn't."
+        ]
+      ]
+    },
+    {
+      "id": 3,
+      "name": "After School",
+      "start": 23,
+      "end": 34,
+      "source_in": 15.735,
+      "source_out": 24.215,
+      "narration": "After school, he walked away alone. I tried calling, but he didn't answer. That's when I noticed a little shop squeezed between two buildings that had never been there before.",
+      "captions": [
+        [
+          23.048,
+          25.271,
+          "After school, he walked away alone."
+        ],
+        [
+          25.271,
+          27.378,
+          "I tried calling, but he didn't answer."
+        ],
+        [
+          27.378,
+          29.378,
+          "That's when I noticed a little shop squeezed"
+        ],
+        [
+          29.378,
+          31.271,
+          "between two buildings that had never been"
+        ],
+        [
+          31.271,
+          32.021,
+          "there before."
+        ]
+      ]
+    },
+    {
+      "id": 4,
+      "name": "The Strange Shop",
+      "start": 34,
+      "end": 48,
+      "source_in": 24.275,
+      "source_out": 35.775,
+      "narration": "The sign read, \"SECOND CHANCES.\" Underneath, in tiny letters: \"Refunds cost more.\" I stepped inside. A wall of clocks ticked backward, and an old shopkeeper asked, \"Which day would you change?\"",
+      "captions": [
+        [
+          34.048,
+          36.388,
+          "The sign read, \"SECOND CHANCES.\""
+        ],
+        [
+          36.388,
+          39.314,
+          "Underneath, in tiny letters: \"Refunds cost"
+        ],
+        [
+          39.314,
+          41.165,
+          "more.\" I stepped inside."
+        ],
+        [
+          41.165,
+          43.388,
+          "A wall of clocks ticked backward, and an"
+        ],
+        [
+          43.388,
+          45.559,
+          "old shopkeeper asked, \"Which day would you"
+        ],
+        [
+          45.559,
+          46.234,
+          "change?\""
+        ]
+      ]
+    },
+    {
+      "id": 5,
+      "name": "The Price",
+      "start": 48,
+      "end": 65,
+      "source_in": 35.875,
+      "source_out": 46.675,
+      "narration": "I told him about Lucas. He handed me a golden watch. \"Turn it once, and you can redo today,\" he said. \"But the shop takes a memory you love.\" I thought one memory was worth saving my best friend.",
+      "captions": [
+        [
+          48.048,
+          49.527,
+          "I told him about Lucas."
+        ],
+        [
+          49.527,
+          51.346,
+          "He handed me a golden watch."
+        ],
+        [
+          51.346,
+          53.824,
+          "\"Turn it once, and you can redo today,\""
+        ],
+        [
+          53.824,
+          55.793,
+          "he said. \"But the shop takes a memory"
+        ],
+        [
+          55.793,
+          58.112,
+          "you love.\" I thought one memory was worth"
+        ],
+        [
+          58.112,
+          59.489,
+          "saving my best friend."
+        ]
+      ]
+    },
+    {
+      "id": 6,
+      "name": "The Do-Over",
+      "start": 65,
+      "end": 83,
+      "source_in": 46.745,
+      "source_out": 57.525,
+      "narration": "I turned the watch. Suddenly I was back in class, hearing the same lie again. This time, I stood up. I told everyone it wasn't true. Lucas stared at me, then smiled like the old days.",
+      "captions": [
+        [
+          65.048,
+          66.25,
+          "I turned the watch."
+        ],
+        [
+          66.25,
+          68.378,
+          "Suddenly I was back in class, hearing the"
+        ],
+        [
+          68.378,
+          69.856,
+          "same lie again."
+        ],
+        [
+          69.856,
+          71.399,
+          "This time, I stood up."
+        ],
+        [
+          71.399,
+          73.367,
+          "I told everyone it wasn't true."
+        ],
+        [
+          73.367,
+          75.707,
+          "Lucas stared at me, then smiled like the"
+        ],
+        [
+          75.707,
+          76.468,
+          "old days."
+        ]
+      ]
+    },
+    {
+      "id": 7,
+      "name": "The Missing Treehouse Memory",
+      "start": 83,
+      "end": 99,
+      "source_in": 57.615,
+      "source_out": 69.175,
+      "narration": "Walking home, Lucas asked, \"Remember the treehouse we built by the river?\" I tried to picture it. Nothing. Not the ladder, not the silly sign we painted. Ten summers of friendship, and one of my favorite days was gone.",
+      "captions": [
+        [
+          83.048,
+          85.154,
+          "Walking home, Lucas asked, \"Remember the"
+        ],
+        [
+          85.154,
+          86.867,
+          "treehouse we built by the river?\""
+        ],
+        [
+          86.867,
+          88.133,
+          "I tried to picture it."
+        ],
+        [
+          88.133,
+          90.888,
+          "Nothing. Not the ladder, not the silly sign"
+        ],
+        [
+          90.888,
+          93.452,
+          "we painted. Ten summers of friendship, and one"
+        ],
+        [
+          93.452,
+          95.298,
+          "of my favorite days was gone."
+        ]
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Refunds Cost More",
+      "start": 99,
+      "end": 114,
+      "source_in": 69.275,
+      "source_out": 79.845,
+      "narration": "I ran back to the shop. \"Give me that memory back,\" I begged. The shopkeeper pointed to the tiny writing on the sign. \"Undoing a second chance costs more than buying one.\" I left empty-handed.",
+      "captions": [
+        [
+          99.048,
+          100.41,
+          "I ran back to the shop."
+        ],
+        [
+          100.41,
+          102.665,
+          "\"Give me that memory back,\" I begged."
+        ],
+        [
+          102.665,
+          104.803,
+          "The shopkeeper pointed to the tiny writing on"
+        ],
+        [
+          104.803,
+          107.761,
+          "the sign. \"Undoing a second chance costs more"
+        ],
+        [
+          107.761,
+          108.941,
+          "than buying one.\""
+        ],
+        [
+          108.941,
+          110.245,
+          "I left empty-handed."
+        ]
+      ]
+    },
+    {
+      "id": 9,
+      "name": "The Photograph",
+      "start": 114,
+      "end": 130,
+      "source_in": 79.935,
+      "source_out": 90.695,
+      "narration": "The next morning, Lucas showed up at my door with an old photograph. Two kids grinning in a crooked wooden treehouse. When I took it, the memory rushed back. Lucas blinked, as if he'd forgotten why he was there.",
+      "captions": [
+        [
+          114.048,
+          115.824,
+          "The next morning, Lucas showed up at my"
+        ],
+        [
+          115.824,
+          117.548,
+          "door with an old photograph."
+        ],
+        [
+          117.548,
+          119.516,
+          "Two kids grinning in a crooked wooden"
+        ],
+        [
+          119.516,
+          122.08,
+          "treehouse. When I took it, the memory rushed"
+        ],
+        [
+          122.08,
+          124.718,
+          "back. Lucas blinked, as if he'd forgotten why"
+        ],
+        [
+          124.718,
+          125.447,
+          "he was there."
+        ]
+      ]
+    },
+    {
+      "id": 10,
+      "name": "The Name He Forgot",
+      "start": 130,
+      "end": 143,
+      "source_in": 90.765,
+      "source_out": 98.275,
+      "narration": "I was about to thank him when he asked, \"Sorry... what's your name again?\" I laughed, until I saw the golden watch in his pocket. He wasn't joking.",
+      "captions": [
+        [
+          130.048,
+          131.282,
+          "I was about to thank him when he"
+        ],
+        [
+          131.282,
+          133.771,
+          "asked, \"Sorry... what's your name again?\""
+        ],
+        [
+          133.771,
+          136.069,
+          "I laughed, until I saw the golden watch"
+        ],
+        [
+          136.069,
+          136.91,
+          "in his pocket."
+        ],
+        [
+          136.91,
+          137.989,
+          "He wasn't joking."
+        ]
+      ]
+    },
+    {
+      "id": 11,
+      "name": "What Lucas Paid",
+      "start": 143,
+      "end": 158,
+      "source_in": 98.355,
+      "source_out": 108.555,
+      "narration": "I raced to the shop. The old man finally told me what Lucas paid. Not just one afternoon. He gave up every memory we had made together. He'd traded knowing me so I could remember him.",
+      "captions": [
+        [
+          143.048,
+          144.335,
+          "I raced to the shop."
+        ],
+        [
+          144.335,
+          146.335,
+          "The old man finally told me what Lucas"
+        ],
+        [
+          146.335,
+          148.612,
+          "paid. Not just one afternoon."
+        ],
+        [
+          148.612,
+          150.644,
+          "He gave up every memory we had made"
+        ],
+        [
+          150.644,
+          153.09,
+          "together. He'd traded knowing me so I could"
+        ],
+        [
+          153.09,
+          153.851,
+          "remember him."
+        ]
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Meeting Again",
+      "start": 158,
+      "end": 174,
+      "source_in": 108.655,
+      "source_out": 120.925,
+      "narration": "I found Lucas at our old treehouse, staring at the ladder like he didn't know why he'd come. I sat beside him. \"Hey,\" I said. \"I'm Noah.\" He smiled. \"I'm Lucas.\" And somehow, that felt like a second chance worth keeping.",
+      "captions": [
+        [
+          158.048,
+          160.59,
+          "I found Lucas at our old treehouse, staring"
+        ],
+        [
+          160.59,
+          162.144,
+          "at the ladder like he didn't know why"
+        ],
+        [
+          162.144,
+          164.112,
+          "he'd come. I sat beside him."
+        ],
+        [
+          164.112,
+          165.293,
+          "\"Hey,\" I said."
+        ],
+        [
+          165.293,
+          166.931,
+          "\"I'm Noah.\" He smiled."
+        ],
+        [
+          166.931,
+          169.42,
+          "\"I'm Lucas.\" And somehow, that felt like a"
+        ],
+        [
+          169.42,
+          171.053,
+          "second chance worth keeping."
+        ]
+      ]
+    }
+  ]
+}
