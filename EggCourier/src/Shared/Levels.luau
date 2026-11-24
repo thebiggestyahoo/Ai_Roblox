@@ -1,23 +1,26 @@
--- Each row builds a 46-stud station with a 14-stud checkpoint approach.
+-- Sections run from the launch deck to the finish, in order.
 return {
-	{name = "Big Ball Boulevard", time = 75, stations = {
-		{"ball", "sweep"}, {"foam", "ball"}, {"sweep", "ball"}, {"beam", "sweep"}, {"ball", "sweep"},
-	}},
-	{name = "Spinner Showdown", time = 85, stations = {
-		{"sweep", "sweep"}, {"moving", "sweep"}, {"zone", "ball"}, {"moving", "sweep"}, {"sweep", "sweep"},
-	}},
-	{name = "Punch Wall Panic", time = 90, stations = {
-		{"foam", "foam"}, {"moving", "foam"}, {"foam", "sweep"}, {"zone", "foam"}, {"moving", "foam"},
-	}},
-	{name = "The Wobbly Bridge", time = 100, stations = {
-		{"tilt", "beam"}, {"roller", "sweep"}, {"moving", "tilt"}, {"beam", "pendulum"}, {"zone", "sweep"},
-	}},
-	{name = "Meadow Mayhem", time = 110, stations = {
-		{"ball", "foam"}, {"moving", "sweep"}, {"zone", "pendulum"}, {"tilt", "roller"}, {"pendulum", "pendulum"}, {"beam", "sweep"},
-	}},
+	{name = "Big Ball Boulevard", island = "Green Meadows", rating = "Tough", time = 65, pace = 1.00,
+		sections = {"bumper", "steps", "duel", "spinners", "rafts", "bumper"}},
+	{name = "Spinner Showdown", island = "Green Meadows", rating = "Tough", time = 70, pace = 1.08,
+		sections = {"spinners", "steps", "duel", "swing", "spinners", "ferry", "duel"}},
+	{name = "Punch Wall Panic", island = "Green Meadows", rating = "Severe", time = 75, pace = 1.13,
+		sections = {"punch", "rafts", "duel", "punch", "shutters", "duel", "steps", "punch"}},
+	{name = "The Wobbly Bridge", island = "Green Meadows", rating = "Severe", time = 80, pace = 1.18,
+		sections = {"tilts", "ferry", "spinners", "duel", "tilts", "swing", "duel", "rafts"}},
+	{name = "Meadow Mayhem", island = "Green Meadows", rating = "Brutal", time = 85, pace = 1.23,
+		sections = {"bumper", "tilts", "duel", "shutters", "rafts", "swing", "duel", "spinners", "steps"}},
+	{name = "Lava Leap", island = "The Egg Cooker", rating = "Brutal", time = 85, pace = 1.25,
+		sections = {"rollers", "heat", "duel", "blink", "ferry", "punch", "heat", "duel", "shutters"}},
+	{name = "Snowball Speedway", island = "Frozen Eggs", rating = "Brutal", time = 88, pace = 1.27,
+		sections = {"ice", "steps", "duel", "ferry", "ice", "tilts", "duel", "rafts", "ice"}},
+	{name = "Planet Hopper", island = "Eggstraterrestrial", rating = "Expert", time = 95, pace = 1.31,
+		sections = {"blink", "spinners", "ferry", "duel", "heat", "orbit", "blink", "duel", "spinners"}},
+	{name = "The Relic Run", island = "Sunken Ruins", rating = "Expert", time = 108, pace = 1.31,
+		sections = {"relic", "chase", "rope", "duel", "shutters", "relic", "rope", "duel", "chase"}},
 	future = {
-		{name = "The Egg Cooker", difficulty = "Medium", palette = {0xf96335, 0x343046}, mechanics = {"conveyor", "vanish", "lava"}, levels = {"Lava Leap", "Conveyor Chaos", "Volcano Rush", "The Melting Bridge", "The Giant Egg Cooker"}},
-		{name = "Frozen Eggs", difficulty = "Hard", palette = {0x83dcff, 0x435dc7}, mechanics = {"ice", "moving", "snowball", "wind"}, levels = {"Slippery Slopes", "Snowball Speedway", "Iceberg Islands", "Frozen Spinner", "Blizzard Mountain"}},
-		{name = "Eggstraterrestrial", difficulty = "Extreme", palette = {0x9d54ff, 0x272251}, mechanics = {"gravity", "vanish", "roller"}, levels = {"Zero Gravity Jump", "Planet Hopper", "Cosmic Conveyor", "Galaxy Gauntlet", "The Final Egg"}, reward = "Cosmic"},
+		{name = "The Egg Cooker", difficulty = "Brutal", levels = {"Conveyor Chaos", "Volcano Rush", "The Melting Bridge", "The Giant Egg Cooker"}},
+		{name = "Frozen Eggs", difficulty = "Brutal", levels = {"Slippery Slopes", "Iceberg Islands", "Frozen Spinner", "Blizzard Mountain"}},
+		{name = "Eggstraterrestrial", difficulty = "Expert", levels = {"Zero Gravity Jump", "Cosmic Conveyor", "Galaxy Gauntlet", "The Final Egg"}, reward = "Cosmic"},
 	},
 }

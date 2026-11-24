@@ -8,6 +8,7 @@ local Config = require(Shared.Config)
 local Levels = require(Shared.Levels)
 local Rules = require(Shared.RaceRules)
 local World = require(script.Parent.World)
+local Courses = require(script.Parent.Courses)
 local Obstacles = require(script.Parent.Obstacles)
 local Data = require(script.Parent.Data)
 local Eggs = require(script.Parent.Eggs)
@@ -23,7 +24,7 @@ local course
 local stage, deadline, level = "Lobby", 0, 1
 local started, ends = 0, 0
 local results, resultCount = {}, 0
-local practiceMode, entrants = false, 0
+local practiceMode, entrants, slots = false, 0, 0
 local now = workspace.GetServerTimeNow
 local lobby, demo, leaderboard, podium
 
@@ -46,22 +47,26 @@ local function rootOf(player)
 	return character and character:FindFirstChild("HumanoidRootPart")
 end
 
-local function move(player, pos, frozen, forward)
+local function move(player, pos, frozen)
 	local root = rootOf(player)
 	if not root then return end
 	root.Anchored = frozen == true
-	root.CFrame = CFrame.lookAt(pos, pos + (forward and Vector3.zAxis or -Vector3.zAxis))
+	root.CFrame = CFrame.lookAt(pos, pos + Vector3.zAxis)
 	root.AssemblyLinearVelocity = Vector3.zero
 	root.AssemblyAngularVelocity = Vector3.zero
+end
+
+local function progress(r)
+	return math.clamp((r.progress-course.z)/(course.finish-course.z),0,0.99)
 end
 
 local function state(player)
 	local r = racers[player]
 	send(player,"State",{
 		stage=stage, deadline=deadline, level=level, racing=r ~= nil, queued=queue[player] == true,
-		practiceQueued=practiceQueue[player] == true, selected=selected[player] or 1, vote=vote[player],
-		practice=practiceMode, solo=entrants == 1, result=r and (r.result or (stage == "Results" and {dnf=true,hp=r.hp,progress=math.clamp((r.progress-course.z)/(course.finish-course.z),0,0.99)})),
-		total=entrants, scoreboard=stage == "Results" and results or nil,
+		practiceQueued=practiceQueue[player] ~= nil, selected=selected[player] or 1, vote=vote[player],
+		practice=practiceMode, solo=entrants == 1, result=r and r.result,
+		total=entrants, slots=slots, qualified=resultCount, scoreboard=stage == "Results" and results or nil,
 	})
 end
 
@@ -70,40 +75,58 @@ local function phase(name, duration)
 	for _, player in Players:GetPlayers() do state(player) end
 end
 
-local function checkpointPosition(r)
-	if r.checkpoint == 0 then return r.spawn end
-	return Vector3.new(course.x,3.65,course.checks[r.checkpoint]-1.8)
-end
-
-local function reset(player,r,at)
+local function restartPractice(player,r,at)
 	local d = Data.get(player)
 	if not d or racers[player] ~= r or stage ~= "Race" then return end
-	r.hp, r.recovering = 3, false
+	r.hp, r.recovering, r.perfect = 3, false, true
 	r.immune = at + Config.protection
-	r.previous = checkpointPosition(r)
-	r.lastSample = at
-	r.speedOrigin, r.speedAt = r.previous, at
-	move(player,r.previous,false,true)
+	r.lastHazard, r.shovedBy, r.shovedAt = nil, nil, nil
+	r.routeIndex, r.progress, r.zone = 1, course.z, nil
+	r.previous, r.lastSample, r.attemptStarted = r.spawn, at, at
+	r.speedOrigin, r.speedAt = r.spawn, at
+	move(player,r.spawn,false)
 	Eggs.attach(player,d,3)
-	send(player,"FX","Checkpoint",r.checkpoint)
+	send(player,"FX","Restart")
+end
+
+local function eliminate(player,r,reason)
+	if r.finished then return end
+	r.finished, r.recovering, r.zone = true, false, nil
+	r.result = {out=true,dnf=true,reason=reason,hp=r.hp,progress=progress(r),practice=practiceMode}
+	move(player,lobby,false)
+	local data = Data.get(player)
+	if data then Eggs.attach(player,data,3) end
+	send(player,"FX","Out",reason)
+	state(player)
+end
+
+local function failedAttempt(player,r,reason,at)
+	if practiceMode then
+		r.recovering = true
+		r.penaltyUntil = at+Config.practiceRestartDelay
+		local root = rootOf(player)
+		if root then root.Anchored = true end
+	else
+		eliminate(player,r,reason)
+	end
 end
 
 local function damage(player,r,amount,source)
 	local at = now(workspace)
 	if stage ~= "Race" or r.finished or r.recovering or (source ~= "fall" and at < r.immune) then return false end
-	if source == r.lastHazard and at-r.lastHit < 1.35 then return false end
+	if source == r.lastHazard and at-r.lastHit < 1.3 then return false end
 	r.lastHazard,r.lastHit,r.immune = source,at,at+Config.protection
 	r.hp = math.max(0,r.hp-amount)
 	Eggs.condition(player,r.hp)
+	r.perfect = false
 	if r.hp == 0 then
-		r.recovering = true
-		r.perfect = false
-		r.penaltyUntil = at+Config.respawnDelay
-		local root = rootOf(player)
-		if root then root.Anchored = true end
 		send(player,"FX","Break")
+		local reason = if source == "fall" then
+			(if r.shovedAt and at-r.shovedAt <= 2 then "Knocked off by " .. r.shovedBy else "Fell off the island")
+			elseif typeof(source) == "Instance" and source:IsA("Player") then "Shoved out by " .. source.DisplayName
+			else "Shell shattered"
+		failedAttempt(player,r,reason,at)
 	else
-		r.perfect = false
 		send(player,"FX","Crack",r.hp)
 	end
 	return true
@@ -112,9 +135,9 @@ end
 local function zoneFor(root)
 	if not course or not root then return nil end
 	local p = root.Position
-	if math.abs(p.X-course.x)>11.5 or p.Y < 0.8 or p.Y > 10 then return nil end
+	if p.Y < 0.8 or p.Y > 10 then return nil end
 	for i, zone in course.zones do
-		if math.abs(p.Z-zone.z) <= zone.extent then return i end
+		if math.abs(p.Z-zone.z) <= zone.extent and math.abs(p.X-(zone.x or course.x)) <= (zone.width or 11.5) then return i end
 	end
 	return nil
 end
@@ -138,7 +161,9 @@ local function shove(player)
 	end
 	r.cooldown = at+Config.shoveCooldown
 	send(player,"FX","Shove")
-	if closest and damage(closest,racers[closest],1,player) and not target.Anchored then
+	if closest and damage(closest,racers[closest],1,player) and not racers[closest].finished and not target.Anchored then
+		local rival = racers[closest]
+		rival.shovedBy, rival.shovedAt = player.DisplayName, at
 		local offset = target.Position-root.Position
 		local flat = Vector3.new(offset.X,0,offset.Z)
 		if flat.Magnitude > 0.1 then
@@ -151,7 +176,7 @@ local function shove(player)
 					end
 				end)
 			end
-			target.AssemblyLinearVelocity = flat.Unit*20 + Vector3.yAxis*8
+			target.AssemblyLinearVelocity = flat.Unit*24 + Vector3.yAxis*9
 		end
 	end
 end
@@ -171,7 +196,7 @@ local function action(player, key, id)
 	if key == "lobby" then
 		queue[player],practiceQueue[player],vote[player] = nil,nil,nil
 		local r = racers[player]
-		if r and (r.finished or stage == "Results") then
+		if r and (r.finished or practiceMode or stage == "Results") then
 			racers[player] = nil
 			move(player,lobby,false)
 			Eggs.attach(player,d,3)
@@ -188,7 +213,10 @@ local function action(player, key, id)
 	if key == "queue" or key == "next" then
 		queue[player],practiceQueue[player] = true,nil
 	elseif key == "practice" then
-		practiceQueue[player],queue[player],vote[player] = true,nil,nil
+		local choice = tonumber(id) or selected[player] or 1
+		if Levels[choice] then
+			practiceQueue[player],queue[player],vote[player] = choice,nil,nil
+		end
 	elseif key == "choose" then
 		local n = tonumber(id)
 		if n and n % 1 == 0 and Levels[n] and n <= d.unlocked then
@@ -242,17 +270,14 @@ local function spawned(player,character)
 	local d = Data.get(player)
 	if not d then return end
 	local r = racers[player]
-	if r and (stage == "Race" or stage == "Countdown") then
-		if not r.finished then
-			local at = now(workspace)
-			r.hp, r.immune, r.previous, r.lastSample = 3, at+Config.protection, checkpointPosition(r), at
-			if stage == "Race" then
-				r.perfect = false
-				r.recovering = true
-				r.penaltyUntil = at + Config.respawnDelay
-			end
-			move(player,r.previous,true,true)
-			Eggs.attach(player,d,r.recovering and 0 or 3)
+	if r and not r.finished then
+		if stage == "Race" then
+			if not r.recovering then failedAttempt(player,r,"Character reset",now(workspace)) end
+			if r.recovering then move(player,r.spawn,true) end
+			return
+		elseif stage == "Preparation" or stage == "Countdown" then
+			move(player,r.spawn,true)
+			Eggs.attach(player,d,3)
 			return
 		end
 	end
@@ -330,7 +355,10 @@ local function finish(player,r,time)
 	send(player,"FX","Finish",r.result)
 	profile(player)
 	state(player)
-	move(player,Vector3.new(course.x+math.clamp((resultCount-6)*2,-12,12),3.65,course.finish+5),true,true)
+	for contender, other in racers do
+		if not other.finished then state(contender) end
+	end
+	move(player,Vector3.new(course.x+math.clamp((resultCount-6)*2,-12,12),3.65,course.finish+5),true)
 end
 
 local tickAccumulator, hudAccumulator, boardAccumulator = 0,0,0
@@ -347,68 +375,78 @@ Run.Heartbeat:Connect(function(dt)
 			if r.finished then continue end
 			local root = rootOf(player)
 			local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-			if not root or not humanoid or humanoid.Health <= 0 then continue end
+			if humanoid and humanoid.Health <= 0 and not r.recovering then
+				failedAttempt(player,r,"Character reset",at)
+			end
+			if r.finished or not root or not humanoid or humanoid.Health <= 0 then continue end
 			if r.recovering then
-				if at >= r.penaltyUntil then reset(player,r,at) end
+				if at >= r.penaltyUntil then restartPractice(player,r,at) end
 				continue
 			end
 			local p = root.Position
-			if p.Y < -8.3 then
+			if p.Y < (course.fallY or -8.3) then
 				damage(player,r,3,"fall")
 				continue
 			end
 			local previous = r.previous
 			local previousTime = r.lastSample
 			r.previous,r.lastSample=p,at
-			-- Reject discontinuous samples and require every ordered checkpoint.
+			-- Discard implausible jumps, then validate course travel in route order.
 			local speedAge = at-(r.speedAt or at)
-			local sustained = speedAge >= 0.8 and (p.Z-r.speedOrigin.Z) > 11 + speedAge*25
-			if (p-previous).Magnitude > math.max(9,(at-previousTime)*60) or sustained then
-				local back = checkpointPosition(r)
-				move(player,back,false,true)
-				r.previous = back
-				r.speedOrigin,r.speedAt=back,at
+			local sustained = speedAge >= 0.8 and (p.Z-r.speedOrigin.Z) > 14 + speedAge*27
+			if (p-previous).Magnitude > math.max(14,(at-previousTime)*60) or sustained then
+				local back = if sustained then r.speedOrigin else previous
+				move(player,back,false)
+				r.previous,r.speedOrigin,r.speedAt=back,back,at
 				continue
 			end
 			if not r.speedAt or speedAge >= 0.8 then r.speedOrigin,r.speedAt=p,at end
-			local nextCheck = course.checks[r.checkpoint+1]
-			local nextGate = nextCheck or course.finish
-			local fraction = Rules.crossing(previous,p,nextGate,course.x,nextCheck and 14.6 or 15.8)
-			if fraction and nextCheck then
-				r.checkpoint += 1
-				send(player,"FX","Checkpoint",r.checkpoint)
-			elseif fraction and r.hp > 0 then
-				local arrival = previousTime + (at-previousTime)*fraction
-				if arrival <= ends then table.insert(candidates,{player=player,r=r,arrival=arrival}) end
+			local gate = course.route[r.routeIndex]
+			if gate then
+				if Rules.crossing(previous,p,gate.z,gate.x,gate.width,gate.minY,gate.maxY) then
+					r.routeIndex += 1
+					gate = course.route[r.routeIndex]
+				end
+			else
+				local fraction = Rules.crossing(previous,p,course.finish,course.x,15.8,0.5,12.5)
+				if fraction and r.hp > 0 then
+					local arrival = previousTime + (at-previousTime)*fraction
+					if arrival <= ends then table.insert(candidates,{player=player,r=r,arrival=arrival}) end
+				end
 			end
-			local last = course.checks[r.checkpoint] or course.z
-			r.progress = math.clamp(p.Z,last,nextCheck or course.finish)
+			r.progress = math.clamp(p.Z,course.z,gate and gate.z or course.finish)
 			r.zone = zoneFor(root)
 		end
 		table.sort(candidates,function(a,b)
 			if a.arrival == b.arrival then return a.player.UserId < b.player.UserId end
 			return a.arrival < b.arrival
 		end)
-		for _, entry in candidates do finish(entry.player,entry.r,entry.arrival-started) end
-		Obstacles.update(course,at-started,racers,damage)
+		for _, entry in candidates do
+			if resultCount == slots then break end
+			finish(entry.player,entry.r,entry.arrival-entry.r.attemptStarted)
+		end
+		if resultCount == slots then
+			for player, r in racers do
+				if not r.finished then eliminate(player,r,"All finish slots claimed") end
+			end
+		else
+			Obstacles.update(course,at-started,racers,damage)
+		end
 		if hudAccumulator >= 0.2 then
 			hudAccumulator = 0
 			local ranked = {}
-			for player,r in racers do table.insert(ranked,{player=player,r=r}) end
+			for player,r in racers do
+				if not r.finished then table.insert(ranked,{player=player,r=r}) end
+			end
 			table.sort(ranked,function(a,b)
-				if a.r.finished or b.r.finished then
-					return (a.r.result and a.r.result.place or math.huge) < (b.r.result and b.r.result.place or math.huge)
-				end
-				if a.r.checkpoint ~= b.r.checkpoint then return a.r.checkpoint > b.r.checkpoint end
 				if a.r.progress ~= b.r.progress then return a.r.progress>b.r.progress end
 				return a.player.UserId < b.player.UserId
 			end)
 			for place, entry in ranked do
 				local r=entry.r
 				send(entry.player,"Race",{
-					hp=r.hp, place=r.finished and r.result.place or place, total=entrants, zone=r.zone ~= nil,
-					check=r.checkpoint, checks=#course.checks, cooldown=r.cooldown,
-					progress=r.finished and 1 or math.clamp((r.progress-course.z)/(course.finish-course.z),0,0.99),
+					hp=r.hp, place=resultCount+place, total=entrants, zone=r.zone ~= nil,
+					cooldown=r.cooldown, progress=progress(r), slots=slots, qualified=resultCount,
 					recover=r.recovering and r.penaltyUntil or 0,
 				})
 			end
@@ -479,17 +517,18 @@ task.spawn(function()
 		end
 		entrants=math.min(#group,Config.maxPlayers)
 		if entrants == 0 then continue end
-		level=choose(group)
+		level=if practiceMode then practiceQueue[group[1]] else choose(group)
+		slots=Rules.slots(entrants)
 		results,resultCount={},0
-		course=World.course(level,0,420)
+		course=Courses.course(level,0,420)
 		local at=now(workspace)
 		for i=1,entrants do
 			local player=group[i]
 			local spot=Vector3.new((i-1)%6*4.5-11.25,3.65,416-math.floor((i-1)/6)*4)
-			racers[player]={hp=3, checkpoint=0, spawn=spot, previous=spot, lastSample=at,
+			racers[player]={hp=3, routeIndex=1, spawn=spot, previous=spot, lastSample=at,
 				progress=course.z, immune=at+Config.countdown+1, cooldown=0, perfect=true}
 			queue[player],practiceQueue[player],vote[player]=nil,nil,nil
-			move(player,spot,true,true)
+			move(player,spot,true)
 			Eggs.attach(player,Data.get(player),3)
 		end
 		phase("Preparation",0.6)
@@ -499,6 +538,7 @@ task.spawn(function()
 		started=now(workspace)
 		ends=started+Levels[level].time
 		for player,r in racers do
+			r.attemptStarted=started
 			local root=rootOf(player)
 			if root then
 				root.Anchored=false
@@ -511,6 +551,9 @@ task.spawn(function()
 			for _, r in racers do if not r.finished then active=true; break end end
 			if not active then break end
 			task.wait(0.2)
+		end
+		for player,r in racers do
+			if not r.finished then eliminate(player,r,"Time ran out") end
 		end
 		phase("Results",Config.results)
 		waitPhase()

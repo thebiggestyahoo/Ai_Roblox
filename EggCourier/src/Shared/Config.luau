@@ -4,12 +4,12 @@ C.intermission = 15
 C.voting = 8
 C.countdown = 3
 C.results = 14
-C.protection = 2
-C.shoveCooldown = 10
+C.protection = 1.15
+C.shoveCooldown = 5
 C.shoveRange = 8
-C.respawnDelay = 2.5
+C.practiceRestartDelay = 1.25
 C.audio = {
-	Music = 0, Countdown = 0, Start = 0, Crack = 0, Break = 0, Checkpoint = 0,
+	Music = 0, Countdown = 0, Start = 0, Crack = 0, Break = 0, Out = 0, Restart = 0,
 	Coins = 0, Shove = 0, Finish = 0, Victory = 0, Click = 0,
 }
 C.passes = {Golden = 0, Rainbow = 0, Galaxy = 0, Royal = 0, VIP = 0}
