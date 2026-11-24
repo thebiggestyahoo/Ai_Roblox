@@ -1,0 +1,28 @@
+{
+  "name": "Don't Crack the Egg!",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "EggShared": {
+        "$path": "src/Shared"
+      }
+    },
+    "ServerScriptService": {
+      "EggServer": {
+        "$path": "src/Server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "EggClient": {
+          "$path": "src/Client"
+        }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false
+      }
+    }
+  }
+}

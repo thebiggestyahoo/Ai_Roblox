@@ -1,0 +1,1891 @@
+<roblox version="4">
+  <Item class="ReplicatedStorage" referent="0">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="1">
+      <Properties>
+        <string name="Name">EggShared</string>
+      </Properties>
+      <Item class="ModuleScript" referent="2">
+        <Properties>
+          <string name="Name">Config</string>
+          <string name="Source"><![CDATA[local C = {}
+C.maxPlayers = 12
+C.intermission = 15
+C.voting = 8
+C.countdown = 3
+C.results = 14
+C.protection = 2
+C.shoveCooldown = 10
+C.shoveRange = 8
+C.respawnDelay = 2.5
+C.audio = {
+	Music = 0, Countdown = 0, Start = 0, Crack = 0, Break = 0, Checkpoint = 0,
+	Coins = 0, Shove = 0, Finish = 0, Victory = 0, Click = 0,
+}
+C.passes = {Golden = 0, Rainbow = 0, Galaxy = 0, Royal = 0, VIP = 0}
+C.skins = {
+	{"Classic", "Classic Egg", 0, {255, 240, 210}, {255, 185, 120}},
+	{"Chocolate", "Chocolate Egg", 250, {113, 57, 42}, {235, 154, 98}},
+	{"Watermelon", "Watermelon Egg", 500, {65, 184, 92}, {255, 97, 119}},
+	{"Ninja", "Ninja Egg", 750, {42, 46, 72}, {244, 83, 98}},
+	{"Dinosaur", "Dinosaur Egg", 1000, {135, 219, 75}, {40, 123, 98}},
+	{"Frozen", "Frozen Egg", 1500, {147, 225, 255}, {61, 138, 255}},
+	{"Lava", "Lava Egg", 2000, {255, 103, 43}, {62, 34, 81}},
+	{"Cosmic", "Cosmic Champion", false, {141, 75, 226}, {82, 255, 221}},
+	{"Golden", "Golden Egg", false, {255, 196, 54}, {255, 245, 140}},
+	{"Rainbow", "Animated Rainbow Egg", false, {250, 120, 194}, {93, 215, 255}},
+	{"Galaxy", "Galaxy Egg", false, {77, 51, 161}, {250, 118, 237}},
+	{"Royal", "Royal Egg", false, {157, 54, 178}, {255, 212, 74}},
+	{"VIP", "VIP Egg Courier", false, {75, 234, 221}, {255, 221, 99}},
+}
+C.suggestedPrices = {Golden = 49, Rainbow = 79, Galaxy = 99, Royal = 149, VIP = 199}
+C.trails = {Lightning = 600, Rainbow = 900}
+C.titles = {"Rookie Courier", "Egg Protector", "Professional Deliverer", "Egg Master", "Egg Legend"}
+C.titleXP = {0, 100, 300, 650, 1500}
+C.bySkin = {}
+for _, skin in C.skins do C.bySkin[skin[1]] = skin end
+return C
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">EggModel</string>
+          <string name="Source"><![CDATA[local Config = require(script.Parent.Config)
+local EggModel = {}
+
+local function piece(model, name, size, cf, color, ball)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = Enum.Material.SmoothPlastic
+	if ball then p.Shape = Enum.PartType.Ball end
+	p.CanCollide = false
+	p.CanTouch = false
+	p.CanQuery = false
+	p.Massless = true
+	p.CastShadow = false
+	p.Parent = model
+	return p
+end
+
+function EggModel.build(id, width, anchored)
+	local skin = Config.bySkin[id] or Config.bySkin.Classic
+	local color = Color3.fromRGB(table.unpack(skin[4]))
+	local accent = Color3.fromRGB(table.unpack(skin[5]))
+	local model = Instance.new("Model")
+	model.Name = "CourierEgg"
+	local base = piece(model, "Shell", Vector3.new(1, 1.26, 1) * width, CFrame.new(0, -0.09 * width, 0), color, true)
+	model.PrimaryPart = base
+	piece(model, "Crown", Vector3.new(0.79, 0.96, 0.79) * width, CFrame.new(0, 0.27 * width, 0), color, true)
+	if id ~= "Classic" then
+		for i = 1, 6 do
+			local angle = i * math.pi / 3
+			local cf = CFrame.Angles(0, angle, 0) * CFrame.new(0, (i % 2 - 0.5) * 0.32 * width, -0.48 * width)
+			piece(model, "Mark", Vector3.new(0.19, 0.22, 0.075) * width, cf, accent, true)
+		end
+	end
+	local points = {{-0.16, 0.36}, {-0.01, 0.17}, {-0.11, 0.03}, {0.1, -0.12}, {0.02, -0.31}}
+	for side = 1, 4 do
+		for i = 1, #points - 1 do
+			local a, b = points[i], points[i + 1]
+			local origin = Vector3.new(a[1], a[2], -0.494) * width
+			local target = Vector3.new(b[1], b[2], -0.494) * width
+			local cf = CFrame.Angles(0, side * math.pi / 2, 0) * CFrame.lookAt((origin + target) / 2, target)
+			local crack = piece(model, i < 3 and "Crack1" or "Crack2", Vector3.new(0.036, 0.048, (target-origin).Magnitude / width) * width, cf, Color3.fromRGB(55, 38, 61))
+			crack.Transparency = 1
+		end
+	end
+	for _, p in model:GetChildren() do
+		p.Anchored = anchored
+		if p ~= base and not anchored then
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = base
+			weld.Part1 = p
+			weld.Parent = p
+		end
+	end
+	model:SetAttribute("Skin", id)
+	return model
+end
+
+function EggModel.condition(model, hp)
+	for _, p in model:GetChildren() do
+		if p.Name == "Crack1" then p.Transparency = hp < 3 and 0 or 1 end
+		if p.Name == "Crack2" then p.Transparency = hp < 2 and 0 or 1 end
+	end
+end
+return EggModel
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">Levels</string>
+          <string name="Source"><![CDATA[-- Each row builds a 46-stud station with a 14-stud checkpoint approach.
+return {
+	{name = "Big Ball Boulevard", time = 75, stations = {
+		{"ball", "sweep"}, {"foam", "ball"}, {"sweep", "ball"}, {"beam", "sweep"}, {"ball", "sweep"},
+	}},
+	{name = "Spinner Showdown", time = 85, stations = {
+		{"sweep", "sweep"}, {"moving", "sweep"}, {"zone", "ball"}, {"moving", "sweep"}, {"sweep", "sweep"},
+	}},
+	{name = "Punch Wall Panic", time = 90, stations = {
+		{"foam", "foam"}, {"moving", "foam"}, {"foam", "sweep"}, {"zone", "foam"}, {"moving", "foam"},
+	}},
+	{name = "The Wobbly Bridge", time = 100, stations = {
+		{"tilt", "beam"}, {"roller", "sweep"}, {"moving", "tilt"}, {"beam", "pendulum"}, {"zone", "sweep"},
+	}},
+	{name = "Meadow Mayhem", time = 110, stations = {
+		{"ball", "foam"}, {"moving", "sweep"}, {"zone", "pendulum"}, {"tilt", "roller"}, {"pendulum", "pendulum"}, {"beam", "sweep"},
+	}},
+	future = {
+		{name = "The Egg Cooker", difficulty = "Medium", palette = {0xf96335, 0x343046}, mechanics = {"conveyor", "vanish", "lava"}, levels = {"Lava Leap", "Conveyor Chaos", "Volcano Rush", "The Melting Bridge", "The Giant Egg Cooker"}},
+		{name = "Frozen Eggs", difficulty = "Hard", palette = {0x83dcff, 0x435dc7}, mechanics = {"ice", "moving", "snowball", "wind"}, levels = {"Slippery Slopes", "Snowball Speedway", "Iceberg Islands", "Frozen Spinner", "Blizzard Mountain"}},
+		{name = "Eggstraterrestrial", difficulty = "Extreme", palette = {0x9d54ff, 0x272251}, mechanics = {"gravity", "vanish", "roller"}, levels = {"Zero Gravity Jump", "Planet Hopper", "Cosmic Conveyor", "Galaxy Gauntlet", "The Final Egg"}, reward = "Cosmic"},
+	},
+}
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="5">
+        <Properties>
+          <string name="Name">RaceRules</string>
+          <string name="Source"><![CDATA[local Rules = {}
+
+function Rules.crossing(previous, current, line, center, width)
+	if previous.Z >= line or current.Z < line then return nil end
+	local fraction = (line-previous.Z)/(current.Z-previous.Z)
+	local x = previous.X + (current.X-previous.X)*fraction
+	local y = previous.Y + (current.Y-previous.Y)*fraction
+	if math.abs(x-center) <= width and y >= 0.5 and y <= 8.5 then return fraction end
+	return nil
+end
+
+function Rules.complete(data, level, time, perfect, place, competitive)
+	local record = tostring(level)
+	local personal = not data.records[record] or time < data.records[record]
+	if personal then data.records[record] = time end
+	local reward = 50 + (perfect and 25 or 0)
+	if competitive then
+		reward += ({100,75,50})[place] or 0
+		if place == 1 then data.wins += 1 end
+	end
+	if data.unlocked == level then
+		data.unlocked += 1
+		if level == 5 then reward += 500 end
+	end
+	data.xp += 30 + (perfect and 10 or 0)
+	data.coins += reward
+	return reward, personal
+end
+return Rules
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="6">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="7">
+      <Properties>
+        <string name="Name">EggServer</string>
+      </Properties>
+      <Item class="ModuleScript" referent="8">
+        <Properties>
+          <string name="Name">Data</string>
+          <string name="Source"><![CDATA[local Store = game:GetService("DataStoreService"):GetDataStore("CourierProfiles_v1")
+local RunService = game:GetService("RunService")
+local Http = game:GetService("HttpService")
+local Rules = require(game:GetService("ReplicatedStorage"):WaitForChild("EggShared").RaceRules)
+local token = Http:GenerateGUID(false)
+local D = {sessions = {}}
+
+local function normalize(raw)
+	local data = typeof(raw) == "table" and raw or {}
+	for key, fallback in {coins=0, wins=0, xp=0, unlocked=1} do
+		local value = data[key]
+		data[key] = if typeof(value) == "number" and value >= fallback then math.floor(value) else fallback
+	end
+	for _, key in {"skins","trails","records"} do
+		if typeof(data[key]) ~= "table" then data[key] = {} end
+	end
+	data.skins.Classic = true
+	if not data.skins[data.skin or ""] then data.skin = "Classic" end
+	if typeof(data.title) ~= "number" then data.title = 1 end
+	if typeof(data.trail) ~= "string" then data.trail = "" end
+	return data
+end
+
+local function retry(operation)
+	local errorMessage
+	for attempt = 1, 3 do
+		local ok, result = pcall(operation)
+		if ok then return true, result end
+		errorMessage = result
+		if attempt < 3 then task.wait(attempt * 0.6) end
+	end
+	warn("Courier profile store:", errorMessage)
+	return false, nil
+end
+
+local function key(player)
+	return "u:" .. player.UserId
+end
+
+function D.load(player)
+	local ok, result = retry(function()
+		return Store:UpdateAsync(key(player), function(old)
+			local envelope = typeof(old) == "table" and old or {}
+			if envelope.owner and envelope.owner ~= token and (envelope.expires or 0) > os.time() then return nil end
+			return {owner=token, expires=os.time()+180, data=normalize(envelope.data or (not envelope.owner and old))}
+		end)
+	end)
+	if not result and (ok or not RunService:IsStudio()) then
+		if player.Parent then player:Kick("Your courier profile is unavailable. Please rejoin in a moment.") end
+		return nil
+	end
+	local session = {data=result and result.data or normalize(nil), temporary=result == nil}
+	D.sessions[player] = session
+	return session.data
+end
+
+function D.get(player)
+	local session = D.sessions[player]
+	return session and session.data
+end
+
+function D.save(player, release)
+	local session = D.sessions[player]
+	if not session then return end
+	if release then session.closing = true end
+	if session.saving then
+		if not release then return end
+		repeat task.wait(0.1) until not session.saving
+		if D.sessions[player] ~= session then return end
+	end
+	if session.temporary then
+		if release then D.sessions[player] = nil end
+		return
+	end
+	session.saving = true
+	local snapshot = table.clone(session.data)
+	for _, field in {"skins","trails","records"} do snapshot[field] = table.clone(snapshot[field]) end
+	local ok, result = retry(function()
+		return Store:UpdateAsync(key(player), function(old)
+			if typeof(old) ~= "table" or old.owner ~= token then return nil end
+			if release then return {data=snapshot} end
+			return {owner=token, expires=os.time()+180, data=snapshot}
+		end)
+	end)
+	if ok and not result and not release and player.Parent then
+		player:Kick("Your courier profile moved to another server. Please rejoin.")
+	end
+	session.saving = false
+	if release then D.sessions[player] = nil end
+end
+
+function D.summary(player)
+	local data = D.get(player)
+	if not data then return end
+	player:SetAttribute("Coins",data.coins)
+	player:SetAttribute("Wins",data.wins)
+	player:SetAttribute("XP",data.xp)
+	player:SetAttribute("Unlocked",data.unlocked)
+end
+
+function D.finish(player, level, time, perfect, place, competitive)
+	local data = D.get(player)
+	if not data then return 0, false end
+	local reward, personal = Rules.complete(data,level,time,perfect,place,competitive)
+	D.summary(player)
+	return reward, personal
+end
+return D
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="9">
+        <Properties>
+          <string name="Name">Eggs</string>
+          <string name="Source"><![CDATA[local Debris = game:GetService("Debris")
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("EggShared")
+local EggModel = require(Shared.EggModel)
+local Eggs = {}
+
+function Eggs.attach(player, data, hp)
+	local character = player.Character
+	local head = character and character:FindFirstChild("Head")
+	if not head then return end
+	local existing = character:FindFirstChild("CourierEgg")
+	if existing then existing:Destroy() end
+	if hp <= 0 then return end
+	local egg = EggModel.build(data.skin, head.Size.X * 1.5, false)
+	local offset = CFrame.new(0,head.Size.Y/2+egg.PrimaryPart.Size.Y/2+0.34,0)
+	egg:PivotTo(head.CFrame * offset)
+	egg.Parent = character
+	local motor = Instance.new("Motor6D")
+	motor.Name = "EggMotor"
+	motor.Part0 = head
+	motor.Part1 = egg.PrimaryPart
+	motor.C0 = offset
+	motor.Parent = egg.PrimaryPart
+	EggModel.condition(egg,hp)
+	local previous = head:FindFirstChild("CourierTitle")
+	if previous then previous:Destroy() end
+	local nameplate = Instance.new("BillboardGui",head)
+	nameplate.Name = "CourierTitle"
+	nameplate.Size = UDim2.fromScale(6,0.8)
+	nameplate.StudsOffset = Vector3.new(0,head.Size.Y+3,0)
+	nameplate.MaxDistance = 36
+	local title = Instance.new("TextLabel",nameplate)
+	title.Size = UDim2.fromScale(1,1)
+	title.BackgroundTransparency = 1
+	title.Font = Enum.Font.GothamBold
+	title.TextScaled = true
+	title.TextStrokeTransparency = 0.5
+	title.TextColor3 = Color3.fromHex("fff4ab")
+	local config = require(Shared.Config)
+	title.Text = (data.skins.VIP and "VIP  •  " or "") .. (config.titles[data.title] or config.titles[1])
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root then
+		for _, name in {"CourierTrail","CourierTrailLeft","CourierTrailRight"} do
+			local item = root:FindFirstChild(name)
+			if item then item:Destroy() end
+		end
+		if data.trail ~= "" and data.trails[data.trail] then
+			local left = Instance.new("Attachment",root)
+			left.Name = "CourierTrailLeft"
+			left.Position = Vector3.new(-0.65,0,0.5)
+			local right = Instance.new("Attachment",root)
+			right.Name = "CourierTrailRight"
+			right.Position = Vector3.new(0.65,0,0.5)
+			local trail = Instance.new("Trail",root)
+			trail.Name = "CourierTrail"
+			trail.Attachment0, trail.Attachment1 = left, right
+			trail.Lifetime = 0.28
+			trail.MinLength = 0.2
+			trail.FaceCamera = true
+			local color = if data.trail == "Rainbow" then Color3.fromHex("fc67ff") elseif data.trail == "VIP" then Color3.fromHex("ffdc53") else Color3.fromHex("5deaff")
+			trail.Color = ColorSequence.new(color,Color3.fromHex("fff9d7"))
+			trail.Transparency = NumberSequence.new(0.15,1)
+		end
+	end
+end
+
+function Eggs.condition(player, hp)
+	local egg = player.Character and player.Character:FindFirstChild("CourierEgg")
+	if not egg then return end
+	EggModel.condition(egg,hp)
+	if hp == 0 then
+		for i = 1,8 do
+			local fragment = Instance.new("WedgePart")
+			fragment.Name = "Shell chip"
+			fragment.Size = Vector3.new(0.32,0.28,0.42)
+			fragment.Color = egg.PrimaryPart.Color
+			fragment.CFrame = egg:GetPivot() * CFrame.Angles(i, i*0.4, 0)
+			fragment.CanCollide = false
+			fragment.CanTouch = false
+			fragment.CanQuery = false
+			fragment.Parent = workspace
+			fragment.AssemblyLinearVelocity = Vector3.new(math.cos(i)*11,12+i,math.sin(i)*11)
+			fragment.AssemblyAngularVelocity = Vector3.new(i,3,1)
+			Debris:AddItem(fragment,0.7)
+		end
+		egg:Destroy()
+	end
+end
+return Eggs
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="10">
+        <Properties>
+          <string name="Name">Main</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local Run = game:GetService("RunService")
+local Physics = game:GetService("PhysicsService")
+local Debris = game:GetService("Debris")
+local Shared = RS:WaitForChild("EggShared")
+local Config = require(Shared.Config)
+local Levels = require(Shared.Levels)
+local Rules = require(Shared.RaceRules)
+local World = require(script.Parent.World)
+local Obstacles = require(script.Parent.Obstacles)
+local Data = require(script.Parent.Data)
+local Eggs = require(script.Parent.Eggs)
+local Shop = require(script.Parent.Shop)
+
+local remote = Instance.new("RemoteEvent")
+remote.Name = "CourierEvent"
+remote.Parent = Shared
+local queue, practiceQueue, selected, vote, rate = {}, {}, {}, {}, {}
+local shopping = {}
+local racers = {}
+local course
+local stage, deadline, level = "Lobby", 0, 1
+local started, ends = 0, 0
+local results, resultCount = {}, 0
+local practiceMode, entrants = false, 0
+local now = workspace.GetServerTimeNow
+local lobby, demo, leaderboard, podium
+
+pcall(function() Physics:RegisterCollisionGroup("Couriers") end)
+Physics:CollisionGroupSetCollidable("Couriers","Couriers",false)
+workspace.FallenPartsDestroyHeight = -55
+for _, instance in workspace:GetChildren() do
+	if instance.Name == "Baseplate" and instance:IsA("BasePart") then instance:Destroy() end
+end
+
+local function send(player, kind, value, extra)
+	if player.Parent == Players then remote:FireClient(player,kind,value,extra) end
+end
+
+local function profile(player)
+	local d = Data.get(player)
+	if d then send(player,"Profile",{
+		skins=d.skins, trails=d.trails, skin=d.skin, trail=d.trail, title=d.title, records=d.records,
+	}) end
+end
+
+local function rootOf(player)
+	local character = player.Character
+	return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+local function move(player, pos, frozen, forward)
+	local root = rootOf(player)
+	if not root then return end
+	root.Anchored = frozen == true
+	root.CFrame = CFrame.lookAt(pos, pos + (forward and Vector3.zAxis or -Vector3.zAxis))
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.AssemblyAngularVelocity = Vector3.zero
+end
+
+local function state(player)
+	local r = racers[player]
+	send(player,"State",{
+		stage=stage, deadline=deadline, level=level, racing=r ~= nil, queued=queue[player] == true,
+		practiceQueued=practiceQueue[player] == true, selected=selected[player] or 1, vote=vote[player],
+		practice=practiceMode, solo=entrants == 1, result=r and (r.result or (stage == "Results" and {dnf=true,hp=r.hp,progress=math.clamp((r.progress-course.z)/(course.finish-course.z),0,0.99)})),
+		total=entrants, scoreboard=stage == "Results" and results or nil,
+	})
+end
+
+local function phase(name, duration)
+	stage, deadline = name, if name=="Race" then ends else now(workspace)+(duration or 0)
+	for _, player in Players:GetPlayers() do state(player) end
+end
+
+local function checkpointPosition(r)
+	if r.checkpoint == 0 then return r.spawn end
+	return Vector3.new(course.x,3.65,course.checks[r.checkpoint]-1.8)
+end
+
+local function reset(player,r,at)
+	local d = Data.get(player)
+	if not d or racers[player] ~= r or stage ~= "Race" then return end
+	r.hp, r.recovering = 3, false
+	r.immune = at + Config.protection
+	r.previous = checkpointPosition(r)
+	r.lastSample = at
+	r.speedOrigin, r.speedAt = r.previous, at
+	move(player,r.previous,false,true)
+	Eggs.attach(player,d,3)
+	send(player,"FX","Checkpoint",r.checkpoint)
+end
+
+local function damage(player,r,amount,source)
+	local at = now(workspace)
+	if stage ~= "Race" or r.finished or r.recovering or (source ~= "fall" and at < r.immune) then return false end
+	if source == r.lastHazard and at-r.lastHit < 1.35 then return false end
+	r.lastHazard,r.lastHit,r.immune = source,at,at+Config.protection
+	r.hp = math.max(0,r.hp-amount)
+	Eggs.condition(player,r.hp)
+	if r.hp == 0 then
+		r.recovering = true
+		r.perfect = false
+		r.penaltyUntil = at+Config.respawnDelay
+		local root = rootOf(player)
+		if root then root.Anchored = true end
+		send(player,"FX","Break")
+	else
+		r.perfect = false
+		send(player,"FX","Crack",r.hp)
+	end
+	return true
+end
+
+local function zoneFor(root)
+	if not course or not root then return nil end
+	local p = root.Position
+	if math.abs(p.X-course.x)>11.5 or p.Y < 0.8 or p.Y > 10 then return nil end
+	for i, zone in course.zones do
+		if math.abs(p.Z-zone.z) <= zone.extent then return i end
+	end
+	return nil
+end
+
+local function shove(player)
+	local r, root = racers[player],rootOf(player)
+	local at = now(workspace)
+	if stage ~= "Race" or (practiceMode or entrants < 2) or not r or r.finished or r.recovering or not root or root.Anchored or at < r.cooldown or at < r.immune then return end
+	local zone = zoneFor(root)
+	if not zone then return end
+	local closest, target, gap
+	for other, rival in racers do
+		if other == player or rival.finished or rival.recovering or at < rival.immune then continue end
+		local otherRoot = rootOf(other)
+		if not otherRoot or otherRoot.Anchored or zoneFor(otherRoot) ~= zone then continue end
+		local delta = otherRoot.Position-root.Position
+		local distance = delta.Magnitude
+		if distance <= Config.shoveRange and (distance < 0.1 or root.CFrame.LookVector:Dot(delta.Unit) > 0.12) and (not gap or distance<gap) then
+			closest,target,gap = other,otherRoot,distance
+		end
+	end
+	r.cooldown = at+Config.shoveCooldown
+	send(player,"FX","Shove")
+	if closest and damage(closest,racers[closest],1,player) and not target.Anchored then
+		local offset = target.Position-root.Position
+		local flat = Vector3.new(offset.X,0,offset.Z)
+		if flat.Magnitude > 0.1 then
+			local canSet = target:CanSetNetworkOwnership()
+			if canSet then
+				target:SetNetworkOwner(nil)
+				task.delay(0.18,function()
+					if target:IsDescendantOf(workspace) and target:CanSetNetworkOwnership() then
+						target:SetNetworkOwnershipAuto()
+					end
+				end)
+			end
+			target.AssemblyLinearVelocity = flat.Unit*20 + Vector3.yAxis*8
+		end
+	end
+end
+
+local function updated(player)
+	profile(player)
+	local d = Data.get(player)
+	if d and not racers[player] then Eggs.attach(player,d,3) end
+end
+Shop.listen(updated)
+
+local function action(player, key, id)
+	local d = Data.get(player)
+	if not d then return end
+	if key == "hello" then profile(player); state(player); return end
+	if key == "shove" then shove(player); return end
+	if key == "lobby" then
+		queue[player],practiceQueue[player],vote[player] = nil,nil,nil
+		local r = racers[player]
+		if r and (r.finished or stage == "Results") then
+			racers[player] = nil
+			move(player,lobby,false)
+			Eggs.attach(player,d,3)
+		end
+		state(player)
+		return
+	end
+	if key == "next" and racers[player] and (racers[player].finished or stage == "Results") then
+		racers[player] = nil
+		move(player,lobby,false)
+		Eggs.attach(player,d,3)
+	end
+	if racers[player] then return end
+	if key == "queue" or key == "next" then
+		queue[player],practiceQueue[player] = true,nil
+	elseif key == "practice" then
+		practiceQueue[player],queue[player],vote[player] = true,nil,nil
+	elseif key == "choose" then
+		local n = tonumber(id)
+		if n and n % 1 == 0 and Levels[n] and n <= d.unlocked then
+			selected[player] = n
+			if stage == "Voting" and queue[player] then vote[player] = n end
+		end
+	elseif key == "skin" or key == "title" or key == "trail" then
+		if shopping[player] then return end
+		shopping[player] = true
+		local message, pass = Shop.select(player,key,id)
+		shopping[player] = nil
+		send(player,"Notice",message)
+		if pass then send(player,"Pass",pass) end
+		updated(player)
+	elseif key == "Shop" or key == "Courses" then
+		send(player,"Open",key)
+	end
+	state(player)
+end
+
+lobby,demo,leaderboard,podium = World.lobby(action)
+
+remote.OnServerEvent:Connect(function(player,key,id)
+	if typeof(key) ~= "string" or #key > 12 or (id ~= nil and (typeof(id) ~= "string" or #id > 32)) then return end
+	if (key == "skin" or key == "title" or key == "trail" or key == "choose") and id == nil then return end
+	local clock = os.clock()
+	local limits = rate[player] or {}
+	rate[player] = limits
+	local bucket = if key == "shove" then "shove" else "menu"
+	if limits[bucket] and clock < limits[bucket] then return end
+	limits[bucket] = clock + 0.18
+	action(player,key,id)
+end)
+
+local function spawned(player,character)
+	local head = character:WaitForChild("Head",10)
+	local root = character:WaitForChild("HumanoidRootPart",10)
+	local humanoid = character:WaitForChild("Humanoid",10)
+	if not head or not root or not humanoid or character ~= player.Character or not player.Parent then return end
+	local function part(item)
+		if item:IsA("BasePart") then item.CollisionGroup = "Couriers" end
+	end
+	if not character:GetAttribute("CourierCollisionReady") then
+		character:SetAttribute("CourierCollisionReady",true)
+		character.DescendantAdded:Connect(part)
+		for _, item in character:GetDescendants() do part(item) end
+	end
+	local d = Data.get(player)
+	if not d then return end
+	local r = racers[player]
+	if r and (stage == "Race" or stage == "Countdown") then
+		if not r.finished then
+			local at = now(workspace)
+			r.hp, r.immune, r.previous, r.lastSample = 3, at+Config.protection, checkpointPosition(r), at
+			if stage == "Race" then
+				r.perfect = false
+				r.recovering = true
+				r.penaltyUntil = at + Config.respawnDelay
+			end
+			move(player,r.previous,true,true)
+			Eggs.attach(player,d,r.recovering and 0 or 3)
+			return
+		end
+	end
+	move(player,lobby,false)
+	Eggs.attach(player,d,3)
+end
+
+local function join(player)
+	player.CharacterAdded:Connect(function(char) spawned(player,char) end)
+	local d = Data.load(player)
+	if not d then return end
+	if player.Parent ~= Players then Data.save(player,true); return end
+	Data.summary(player)
+	if player.Character then task.spawn(spawned,player,player.Character) end
+	profile(player)
+	state(player)
+	task.spawn(function() Shop.refresh(player); profile(player) end)
+end
+
+Players.PlayerAdded:Connect(join)
+for _, player in Players:GetPlayers() do task.spawn(join,player) end
+Players.PlayerRemoving:Connect(function(player)
+	racers[player],queue[player],practiceQueue[player],selected[player],vote[player],rate[player] = nil,nil,nil,nil,nil,nil
+	Data.save(player,true)
+end)
+
+task.spawn(function()
+	while task.wait(45) do
+		for player in Data.sessions do task.spawn(Data.save,player,false) end
+	end
+end)
+
+game:BindToClose(function()
+	local pending = 0
+	for player in Data.sessions do
+		pending += 1
+		task.spawn(function()
+			Data.save(player,true)
+			pending -= 1
+		end)
+	end
+	local untilTime = os.clock()+24
+	while pending > 0 and os.clock() < untilTime do task.wait(0.1) end
+end)
+
+local function finishBurst(root)
+	if not root then return end
+	local point = Instance.new("Attachment",workspace.Terrain)
+	point.WorldPosition = root.Position + Vector3.yAxis * 2.2
+	for _, tint in {Color3.fromHex("ffdc53"),Color3.fromHex("fb5791"),Color3.fromHex("36d6ec")} do
+		local emitter = Instance.new("ParticleEmitter",point)
+		emitter.Rate = 0
+		emitter.Color = ColorSequence.new(tint)
+		emitter.Lifetime = NumberRange.new(0.6,1.2)
+		emitter.Speed = NumberRange.new(7,16)
+		emitter.Acceleration = -Vector3.yAxis * 16
+		emitter.SpreadAngle = Vector2.new(85,85)
+		emitter.Size = NumberSequence.new(0.34,0.05)
+		emitter.RotSpeed = NumberRange.new(-120,120)
+		emitter:Emit(10)
+	end
+	Debris:AddItem(point,1.5)
+end
+
+local function finish(player,r,time)
+	r.finished = true
+	resultCount += 1
+	local coins, personal = 0,false
+	if not practiceMode then
+		coins,personal = Data.finish(player,level,time,r.perfect,resultCount,entrants>1)
+	end
+	r.result = {place=resultCount,time=time,hp=r.hp,coins=coins,record=personal,practice=practiceMode}
+	table.insert(results,{name=player.DisplayName,time=time,place=resultCount})
+	finishBurst(rootOf(player))
+	send(player,"FX","Finish",r.result)
+	profile(player)
+	state(player)
+	move(player,Vector3.new(course.x+math.clamp((resultCount-6)*2,-12,12),3.65,course.finish+5),true,true)
+end
+
+local tickAccumulator, hudAccumulator, boardAccumulator = 0,0,0
+Run.Heartbeat:Connect(function(dt)
+	tickAccumulator += dt
+	hudAccumulator += dt
+	boardAccumulator += dt
+	if tickAccumulator < 1/30 then return end
+	tickAccumulator %= 1/30
+	local at = now(workspace)
+	if stage == "Race" and course then
+		local candidates = {}
+		for player,r in racers do
+			if r.finished then continue end
+			local root = rootOf(player)
+			local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+			if not root or not humanoid or humanoid.Health <= 0 then continue end
+			if r.recovering then
+				if at >= r.penaltyUntil then reset(player,r,at) end
+				continue
+			end
+			local p = root.Position
+			if p.Y < -8.3 then
+				damage(player,r,3,"fall")
+				continue
+			end
+			local previous = r.previous
+			local previousTime = r.lastSample
+			r.previous,r.lastSample=p,at
+			-- Reject discontinuous samples and require every ordered checkpoint.
+			local speedAge = at-(r.speedAt or at)
+			local sustained = speedAge >= 0.8 and (p.Z-r.speedOrigin.Z) > 11 + speedAge*25
+			if (p-previous).Magnitude > math.max(9,(at-previousTime)*60) or sustained then
+				local back = checkpointPosition(r)
+				move(player,back,false,true)
+				r.previous = back
+				r.speedOrigin,r.speedAt=back,at
+				continue
+			end
+			if not r.speedAt or speedAge >= 0.8 then r.speedOrigin,r.speedAt=p,at end
+			local nextCheck = course.checks[r.checkpoint+1]
+			local nextGate = nextCheck or course.finish
+			local fraction = Rules.crossing(previous,p,nextGate,course.x,nextCheck and 14.6 or 15.8)
+			if fraction and nextCheck then
+				r.checkpoint += 1
+				send(player,"FX","Checkpoint",r.checkpoint)
+			elseif fraction and r.hp > 0 then
+				local arrival = previousTime + (at-previousTime)*fraction
+				if arrival <= ends then table.insert(candidates,{player=player,r=r,arrival=arrival}) end
+			end
+			local last = course.checks[r.checkpoint] or course.z
+			r.progress = math.clamp(p.Z,last,nextCheck or course.finish)
+			r.zone = zoneFor(root)
+		end
+		table.sort(candidates,function(a,b)
+			if a.arrival == b.arrival then return a.player.UserId < b.player.UserId end
+			return a.arrival < b.arrival
+		end)
+		for _, entry in candidates do finish(entry.player,entry.r,entry.arrival-started) end
+		Obstacles.update(course,at-started,racers,damage)
+		if hudAccumulator >= 0.2 then
+			hudAccumulator = 0
+			local ranked = {}
+			for player,r in racers do table.insert(ranked,{player=player,r=r}) end
+			table.sort(ranked,function(a,b)
+				if a.r.finished or b.r.finished then
+					return (a.r.result and a.r.result.place or math.huge) < (b.r.result and b.r.result.place or math.huge)
+				end
+				if a.r.checkpoint ~= b.r.checkpoint then return a.r.checkpoint > b.r.checkpoint end
+				if a.r.progress ~= b.r.progress then return a.r.progress>b.r.progress end
+				return a.player.UserId < b.player.UserId
+			end)
+			for place, entry in ranked do
+				local r=entry.r
+				send(entry.player,"Race",{
+					hp=r.hp, place=r.finished and r.result.place or place, total=entrants, zone=r.zone ~= nil,
+					check=r.checkpoint, checks=#course.checks, cooldown=r.cooldown,
+					progress=r.finished and 1 or math.clamp((r.progress-course.z)/(course.finish-course.z),0,0.99),
+					recover=r.recovering and r.penaltyUntil or 0,
+				})
+			end
+		end
+	elseif stage == "Countdown" and course then
+		Obstacles.update(course,0,{},damage)
+	end
+	Obstacles.update(demo,at % 10000,{},damage)
+	if boardAccumulator >= 3 then
+		boardAccumulator = 0
+		local board = {}
+		for player, session in Data.sessions do
+			if player.Parent == Players then table.insert(board,{name=player.DisplayName,wins=session.data.wins}) end
+		end
+		table.sort(board,function(a,b) return a.wins>b.wins end)
+		local lines={"SERVER LEADERS"}
+		for i=1,math.min(3,#board) do table.insert(lines,("%d   %s   /   %d wins"):format(i,board[i].name,board[i].wins)) end
+		leaderboard.Text=table.concat(lines,"\n")
+		for i, marker in podium do
+			marker.Text = board[i] and ("%d  %s"):format(i,board[i].name) or tostring(i)
+		end
+	end
+end)
+
+local function waitPhase()
+	while now(workspace) < deadline do task.wait(0.1) end
+end
+
+local function ready(list)
+	local found = {}
+	for player in list do
+		local root = rootOf(player)
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if Data.get(player) and not shopping[player] and root and hum and hum.Health > 0 then table.insert(found,player) end
+	end
+	table.sort(found,function(a,b) return a.UserId < b.UserId end)
+	return found
+end
+
+local function choose(group)
+	local cap = #Levels
+	for _, p in group do cap = math.min(cap,Data.get(p).unlocked) end
+	local counts = table.create(cap,0)
+	for _, p in group do
+		local n = vote[p] or selected[p]
+		if n and n <= cap then counts[n] += 1 end
+	end
+	local best = 1
+	for n=2,cap do if counts[n] > counts[best] then best=n end end
+	return best
+end
+
+task.spawn(function()
+	while true do
+		phase("Lobby")
+		repeat task.wait(0.25) until next(queue) or next(practiceQueue)
+		practiceMode = next(queue) == nil
+		if not practiceMode then
+			phase("Intermission",Config.intermission)
+			waitPhase()
+			table.clear(vote)
+			phase("Voting",Config.voting)
+			waitPhase()
+		end
+		local group = ready(practiceMode and practiceQueue or queue)
+		if practiceMode then
+			for i=#group,2,-1 do group[i]=nil end
+		end
+		entrants=math.min(#group,Config.maxPlayers)
+		if entrants == 0 then continue end
+		level=choose(group)
+		results,resultCount={},0
+		course=World.course(level,0,420)
+		local at=now(workspace)
+		for i=1,entrants do
+			local player=group[i]
+			local spot=Vector3.new((i-1)%6*4.5-11.25,3.65,416-math.floor((i-1)/6)*4)
+			racers[player]={hp=3, checkpoint=0, spawn=spot, previous=spot, lastSample=at,
+				progress=course.z, immune=at+Config.countdown+1, cooldown=0, perfect=true}
+			queue[player],practiceQueue[player],vote[player]=nil,nil,nil
+			move(player,spot,true,true)
+			Eggs.attach(player,Data.get(player),3)
+		end
+		phase("Preparation",0.6)
+		waitPhase()
+		phase("Countdown",Config.countdown)
+		waitPhase()
+		started=now(workspace)
+		ends=started+Levels[level].time
+		for player,r in racers do
+			local root=rootOf(player)
+			if root then
+				root.Anchored=false
+				r.previous,r.lastSample,r.immune=root.Position,started,started+1.5
+			end
+		end
+		phase("Race",Levels[level].time)
+		while now(workspace) < ends do
+			local active=false
+			for _, r in racers do if not r.finished then active=true; break end end
+			if not active then break end
+			task.wait(0.2)
+		end
+		phase("Results",Config.results)
+		waitPhase()
+		phase("Returning",0.65)
+		for player in racers do
+			move(player,lobby,false)
+			local d=Data.get(player)
+			if d then Eggs.attach(player,d,3) end
+		end
+		table.clear(racers)
+		Obstacles.cleanup(course)
+		course.model:Destroy()
+		course=nil
+		waitPhase()
+	end
+end)
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="11">
+        <Properties>
+          <string name="Name">Obstacles</string>
+          <string name="Source"><![CDATA[local O = {}
+local palette = {Color3.fromHex("ff536c"), Color3.fromHex("ffb632"), Color3.fromHex("965bff")}
+local function make(parent, name, size, cf, color, solid, shape)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Anchored = true
+	p.CanCollide = solid
+	p.CanTouch = false
+	p.Material = Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if shape then p.Shape = shape end
+	p.Parent = parent
+	return p
+end
+O.part = make
+
+local definitions = {
+	sweep = {size = Vector3.new(22, 0.85, 1.4), y = 1.25, speed = 1.65, damage = 1},
+	ball = {size = Vector3.new(6, 6, 6), y = 3, range = 9, speed = 1.8, damage = 1, shape = Enum.PartType.Ball},
+	foam = {size = Vector3.new(10, 4, 3), y = 2, range = 10, speed = 1.85, damage = 1},
+	pendulum = {size = Vector3.new(4.8, 4.8, 4.8), y = 2.7, range = 9.5, speed = 1.65, damage = 1, shape = Enum.PartType.Ball},
+	moving = {size = Vector3.new(15, 1.4, 10), range = 3.6, speed = 1.55, solid = true},
+	tilt = {size = Vector3.new(16, 1.4, 10), range = 0.25, speed = 1.7, solid = true},
+	roller = {size = Vector3.new(10, 2.8, 2.8), y = 1.4, range = 5.8, speed = 1.9, damage = 1, shape = Enum.PartType.Cylinder},
+	beam = {size = Vector3.new(8, 1.4, 10), solid = true},
+	vanish = {size = Vector3.new(15, 1.4, 10), solid = true, period = 4, open = 1},
+	collapse = {size = Vector3.new(15, 1.4, 10), solid = true, period = 5, open = 1.4},
+	conveyor = {size = Vector3.new(20, 1.4, 10), solid = true, speed = 7},
+	ice = {size = Vector3.new(20, 1.4, 10), solid = true},
+	door = {size = Vector3.new(20, 6, 1.5), y = 3, solid = true, range = 6, speed = 1.4},
+	launch = {size = Vector3.new(9, 0.5, 8), y = 0.25, solid = true, speed = 37},
+	snowball = {size = Vector3.new(5, 5, 5), y = 2.5, range = 10, speed = 1.5, damage = 1, shape = Enum.PartType.Ball},
+	gravity = {size = Vector3.new(17, 12, 12), y = 6, speed = 105},
+}
+O.definitions = definitions
+
+function O.add(course, kind, origin, phase, overrides)
+	local d = table.clone(assert(definitions[kind], kind))
+	for key, value in overrides or {} do d[key] = value end
+	local cf = CFrame.new(origin + Vector3.new(0, d.y or -0.7, 0))
+	local p = make(course.model, kind, d.size, cf, palette[math.floor(phase) % 3 + 1], d.solid == true, d.shape)
+	local item = {kind = kind, part = p, base = cf, phase = phase, d = d}
+	if kind == "ice" then p.CustomPhysicalProperties = PhysicalProperties.new(1, 0.015, 0) end
+	if kind == "conveyor" then p.AssemblyLinearVelocity = Vector3.new(0, 0, d.speed) end
+	if kind == "gravity" then p.Transparency = 0.8 end
+	if kind == "pendulum" then
+		item.pivot = origin + Vector3.new(0, 16, 0)
+		item.arm = make(course.model, "Foam swing arm", Vector3.one, cf, Color3.fromHex("ffe6a2"), false)
+	end
+	table.insert(course.obstacles, item)
+	return item
+end
+
+function O.update(course, age, racers, damage)
+	if course.gravityApplied then
+		for root in course.gravityApplied do
+			local force = root:FindFirstChild("CourseLift")
+			if force then force.Force = Vector3.zero end
+		end
+	end
+	for _, o in course.obstacles do
+		local p, d, kind = o.part, o.d, o.kind
+		local old = p.CFrame
+		local t = age * (d.speed or 1) + o.phase
+		local s = math.sin(t)
+		if kind == "sweep" then p.CFrame = o.base * CFrame.Angles(0, t, 0)
+		elseif kind == "ball" then p.CFrame = o.base + Vector3.new(s * d.range, math.abs(math.sin(t * 1.6)) * 5.6, 0)
+		elseif kind == "foam" or kind == "moving" then p.CFrame = o.base + Vector3.new(s * d.range, 0, 0)
+		elseif kind == "tilt" then p.CFrame = o.base * CFrame.Angles(0, 0, s * d.range)
+		elseif kind == "roller" then p.CFrame = (o.base + Vector3.new(s * d.range, 0, 0)) * CFrame.Angles(t, 0, 0)
+		elseif kind == "snowball" then p.CFrame = o.base + Vector3.new(0, 0, s * d.range)
+		elseif kind == "pendulum" then
+			local bob = o.base.Position + Vector3.new(s * d.range, math.abs(s)^2 * 4, 0)
+			p.Position = bob
+			o.arm.Size = Vector3.new(0.7, 0.7, (bob - o.pivot).Magnitude)
+			o.arm.CFrame = CFrame.lookAt((bob + o.pivot) / 2, bob)
+		elseif kind == "vanish" or kind == "collapse" then
+			local cycle = (age + o.phase) % d.period
+			p.CanCollide = cycle < d.period - d.open
+			p.Transparency = if not p.CanCollide then 0.85 elseif cycle > d.period - d.open - 0.6 then 0.35 else 0
+		elseif kind == "door" then p.CFrame = o.base + Vector3.new(0, (s + 1) * d.range / 2, 0)
+		end
+		if not d.damage and old == p.CFrame and kind ~= "launch" and kind ~= "gravity" then continue end
+		for player, racer in racers do
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if not root or root.Anchored or racer.finished or racer.recovering then continue end
+			local probe = if kind == "sweep" or kind == "roller" then root.Position-Vector3.yAxis else root.Position
+			local localPos = p.CFrame:PointToObjectSpace(probe)
+			local half = p.Size * 0.5
+			if d.damage then
+				if math.abs(localPos.X) < half.X + 0.85 and math.abs(localPos.Y) < half.Y + 1.75 and math.abs(localPos.Z) < half.Z + 0.85 then
+					damage(player, racer, d.damage, p)
+				end
+			elseif kind == "moving" or kind == "tilt" then
+				local previous = old:PointToObjectSpace(root.Position)
+				if math.abs(previous.X) <= half.X and math.abs(previous.Z) <= half.Z and previous.Y > half.Y + 1.4 and previous.Y < half.Y + 3.5 and root.AssemblyLinearVelocity.Y < 5 then
+					local carried = p.CFrame:PointToWorldSpace(previous)
+					root.CFrame += carried-root.Position
+				end
+			elseif math.abs(localPos.X) <= half.X and math.abs(localPos.Z) <= half.Z then
+				if kind == "launch" and localPos.Y > 0 and localPos.Y < 3.4 and root.AssemblyLinearVelocity.Y <= 1 then
+					root.AssemblyLinearVelocity += Vector3.new(0, d.speed, 0)
+				elseif kind == "gravity" and math.abs(localPos.Y) < half.Y then
+					local force = root:FindFirstChild("CourseLift")
+					if not force then
+						local attachment = Instance.new("Attachment", root)
+						attachment.Name = "CourseLiftAttachment"
+						force = Instance.new("VectorForce", root)
+						force.Name = "CourseLift"
+						force.Attachment0 = attachment
+						force.RelativeTo = Enum.ActuatorRelativeTo.World
+						force.ApplyAtCenterOfMass = true
+					end
+					force.Force = Vector3.yAxis * d.speed * root.AssemblyMass
+					course.gravityApplied = course.gravityApplied or {}
+					course.gravityApplied[root] = true
+				end
+			end
+		end
+	end
+end
+
+function O.cleanup(course)
+	for root in course.gravityApplied or {} do
+		for _, name in {"CourseLift", "CourseLiftAttachment"} do
+			local item = root:FindFirstChild(name)
+			if item then item:Destroy() end
+		end
+	end
+end
+return O
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="12">
+        <Properties>
+          <string name="Name">Shop</string>
+          <string name="Source"><![CDATA[local Marketplace = game:GetService("MarketplaceService")
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("EggShared")
+local Config = require(Shared.Config)
+local Data = require(script.Parent.Data)
+local Shop = {}
+
+local function grant(player,id)
+	local data = Data.get(player)
+	if not data then return end
+	data.skins[id] = true
+	if id == "VIP" then data.trails.VIP = true end
+end
+
+local function owns(player,id,pass)
+	local ok,result = pcall(Marketplace.UserOwnsGamePassAsync, Marketplace,player.UserId,pass)
+	if ok and result then grant(player,id) end
+	return ok, result
+end
+
+function Shop.refresh(player)
+	for id, pass in Config.passes do
+		if pass > 0 then owns(player,id,pass) end
+	end
+end
+
+function Shop.listen(changed)
+	Marketplace.PromptGamePassPurchaseFinished:Connect(function(player, pass, purchased)
+		if not purchased then return end
+		for id, configured in Config.passes do
+			if configured > 0 and configured == pass then
+				-- This event is supplied by MarketplaceService on the server.
+				grant(player,id)
+				changed(player)
+				break
+			end
+		end
+	end)
+end
+
+function Shop.select(player,kind,id)
+	local data = Data.get(player)
+	if not data then return "Profile loading" end
+	if kind == "skin" then
+		local skin = Config.bySkin[id]
+		if not skin then return "Unknown egg" end
+		if not data.skins[id] then
+			if typeof(skin[3]) == "number" then
+				if data.coins < skin[3] then return "You need more coins" end
+				data.coins -= skin[3]
+				data.skins[id] = true
+			else
+				local pass = Config.passes[id]
+				if not pass or pass <= 0 then return "Currently unavailable" end
+				local ok, owned = owns(player,id,pass)
+				if not ok then return "Marketplace unavailable" end
+				if not owned then
+					return "Review the price in Roblox", pass
+				end
+			end
+		end
+		data.skin = id
+	elseif kind == "trail" then
+		if id ~= "" and not data.trails[id] then
+			local price = Config.trails[id]
+			if not price or data.coins < price then return "Trail unavailable or insufficient coins" end
+			data.coins -= price
+			data.trails[id] = true
+		end
+		data.trail = id
+	elseif kind == "title" then
+		local number = tonumber(id)
+		if not number or number % 1 ~= 0 or number > 4 or not Config.titleXP[number] or data.xp < Config.titleXP[number] then
+			return "Title locked"
+		end
+		data.title = number
+	end
+	Data.summary(player)
+	return "Equipped"
+end
+return Shop
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="13">
+        <Properties>
+          <string name="Name">World</string>
+          <string name="Source"><![CDATA[local Lighting = game:GetService("Lighting")
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("EggShared")
+local Levels = require(Shared.Levels)
+local EggModel = require(Shared.EggModel)
+local Obstacles = require(script.Parent.Obstacles)
+local W = {}
+local rgb = Color3.fromHex
+local ink, cream, yellow = rgb("242855"), rgb("fff8da"), rgb("ffdc53")
+local green, aqua, pink = rgb("8ce65a"), rgb("36d6ec"), rgb("fb5791")
+local lane = {rgb("38c988"), rgb("4dc7ed"), rgb("ffa445"), rgb("a67aff"), rgb("ff7299"), rgb("55cfac")}
+local P = Obstacles.part
+
+local function box(parent, name, x, y, z, w, h, d, color, solid)
+	return P(parent, name, Vector3.new(w,h,d), CFrame.new(x,y,z), color, solid == true)
+end
+
+local function billboard(parent, text, width, height, offset, color)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromScale(width,height)
+	gui.StudsOffsetWorldSpace = offset
+	gui.MaxDistance = 175
+	gui.AlwaysOnTop = false
+	gui.Parent = parent
+	local label = Instance.new("TextLabel", gui)
+	label.Size = UDim2.fromScale(1,1)
+	label.BackgroundColor3 = ink
+	label.BackgroundTransparency = 0.12
+	label.Text = text
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBlack
+	label.TextColor3 = color or cream
+	local corner = Instance.new("UICorner", label)
+	corner.CornerRadius = UDim.new(0.2,0)
+	return label
+end
+
+local function arch(model, x, z, width, title, color)
+	for _, dir in {-1, 1} do
+		box(model, "Portal pillar", x + dir * width / 2, 4, z, 2.1, 8, 2.1, color)
+		box(model, "Pillar stripe", x + dir * width / 2, 1.3, z, 2.2, 0.8, 2.2, cream)
+	end
+	local bar = box(model, "Portal marquee", x, 8, z, width+2.2, 2, 2, ink)
+	billboard(bar, title, width, 3, Vector3.new(0,1,0), color)
+	return bar
+end
+
+local function checker(parent, x, z, width)
+	for i = 1, 12 do
+		for row = 1, 2 do
+			box(parent,"Checker",x-width/2+(i-0.5)*width/12,0.035,z+row-1.5,width/12,0.065,1,(i+row)%2 == 0 and cream or ink)
+		end
+	end
+end
+
+local function scenery(model, x, z, seed)
+	local random = Random.new(seed)
+	for i = 1, 10 do
+		local tx = x + random:NextNumber(-17,17)
+		local tz = z + random:NextNumber(-25,25)
+		local h = random:NextNumber(4,10)
+		box(model,"Tree trunk",tx,-4+h/2,tz,1,h,1,rgb("ae7951"))
+		P(model,"Meadow canopy",Vector3.new(h,h*0.85,h),CFrame.new(tx,-4+h,tz),i%2 == 0 and green or rgb("4cc97c"),false,Enum.PartType.Ball)
+	end
+end
+
+function W.lobby(action)
+	Lighting.ClockTime = 14
+	Lighting.Brightness = 2.2
+	Lighting.Ambient = rgb("a4a0c5")
+	Lighting.OutdoorAmbient = rgb("adbcdb")
+	local air = Instance.new("Atmosphere", Lighting)
+	air.Density = 0.23
+	air.Haze = 0.65
+	air.Color = rgb("d0e7ff")
+	local m = Instance.new("Folder", workspace)
+	m.Name = "CourierLobby"
+	box(m,"Grass island",0,-3,0,125,5,112,green,true)
+	box(m,"Stage floor",0,-0.75,0,91,1.5,74,rgb("4b84df"),true)
+	for x = -42,42,7 do box(m,"Inlaid tile",x,0.02,0,0.08,0.035,74,rgb("669cec")) end
+	for z = -35,35,7 do box(m,"Inlaid tile",0,0.02,z,91,0.035,0.08,rgb("669cec")) end
+	box(m,"Golden plinth",0,0.9,9,15,1.8,12,ink,true)
+	box(m,"Golden rim",0,1.9,9,12,0.25,9,yellow,true)
+	local egg = EggModel.build("Golden",7,true)
+	egg:PivotTo(CFrame.new(0,6.6,9))
+	egg.Parent = m
+	local marquee = arch(m,0,16,35,"DON’T CRACK THE EGG!",yellow)
+	for i = -7,7 do box(m,"Marquee bulb",i*2.35,8.7,14.95,0.35,0.35,0.18,i%2==0 and pink or yellow) end
+	billboard(marquee,"GREEN MEADOWS  /  COURIER ARENA",27,1.7,Vector3.new(0,-2,0),aqua)
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "CourierSpawn"
+	spawn.Size = Vector3.new(12,0.25,8)
+	spawn.Position = Vector3.new(0,0.14,-22)
+	spawn.Color = aqua
+	spawn.Neutral = true
+	spawn.Duration = 0
+	spawn.Anchored = true
+	spawn.Parent = m
+	local function portal(x,z,text,key,color)
+		arch(m,x,z,11,text,color)
+		local pad = box(m,text,x,0.3,z,12,0.6,8,color,true)
+		local prompt = Instance.new("ProximityPrompt",pad)
+		prompt.ActionText = text
+		prompt.ObjectText = "Courier Arena"
+		prompt.MaxActivationDistance = 10
+		prompt.RequiresLineOfSight = false
+		prompt.Triggered:Connect(function(player)
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if root and (root.Position-pad.Position).Magnitude <= 12 then action(player,key) end
+		end)
+	end
+	portal(-29,-4,"RACE QUEUE","queue",aqua)
+	portal(29,-4,"PRACTICE","practice",green)
+	portal(-29,23,"EGG SHOP","Shop",pink)
+	portal(29,23,"GREEN MEADOWS","Courses",yellow)
+	local practice = {model = m, obstacles = {}}
+	box(m,"Practice deck",29,0.2,-22,22,0.4,17,rgb("815de3"),true)
+	Obstacles.add(practice,"sweep",Vector3.new(29,0.4,-22),1,{damage = false, size = Vector3.new(15,0.9,1.3)})
+	local board = box(m,"Server leaderboard",0,6,34,22,11,1,ink)
+	local gui = Instance.new("SurfaceGui",board)
+	gui.Face = Enum.NormalId.Front
+	gui.PixelsPerStud = 32
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	local text = Instance.new("TextLabel",gui)
+	text.Size = UDim2.fromScale(1,1)
+	text.BackgroundTransparency = 1
+	text.TextColor3 = yellow
+	text.Font = Enum.Font.GothamBlack
+	text.TextScaled = true
+	local podium = {}
+	for i = 1,3 do
+		local x,z,h = (i-2)*7,27,4-i
+		box(m,"Podium",x,h/2,z,6,h,5,lane[i],true)
+		local sign = box(m,"Podium marker",x,h+0.2,z,1,0.2,1,cream)
+		podium[i] = billboard(sign,tostring(i),6,1.4,Vector3.new(0,1.8,0),yellow)
+	end
+	for _, x in {-54,54} do scenery(m,x,0,100+x) end
+	return Vector3.new(0,3.7,-22), practice, text, podium
+end
+
+function W.course(level, x, z)
+	local spec = Levels[level]
+	local model = Instance.new("Model")
+	model.Name = spec.name
+	local c = {model=model, x=x, z=z, checks={}, obstacles={}, zones={}, length=#spec.stations*60+12}
+	local function deck(rel, length, width, color, ox)
+		return box(model,"Course deck",x+(ox or 0),-0.85,z+rel,width,1.7,length,color,true)
+	end
+	deck(-2,28,32,ink)
+	arch(model,x,z-10,29,spec.name,yellow)
+	local pool = box(model,"Splash pool",x,-10,z+c.length/2,64,1,c.length+38,rgb("3bbcdf"))
+	pool.Material = Enum.Material.Glass
+	pool.Transparency = 0.14
+	for _, side in {-1,1} do
+		box(model,"Meadow bank",x+side*54,-12,z+c.length/2,42,12,c.length+55,green,true)
+		for i=1,math.ceil(c.length/75) do scenery(model,x+side*53,z+i*63-35,i+side*7+level*20) end
+		for row=1,3 do
+			box(model,"Spectator bleachers",x+side*(23+row*2),row*0.6-1,z+18,2,row*1.2,33,lane[row],true)
+		end
+	end
+	for i, station in spec.stations do
+		local start = 12+(i-1)*60
+		local color = lane[i]
+		for j, kind in station do
+			local middle = start + 11.5 + (j-1)*23
+			local center = Vector3.new(x,0,z+middle)
+			if kind == "moving" or kind == "tilt" or kind == "beam" then
+				deck(middle-8.5,6,24,color)
+				deck(middle+8.5,6,24,color)
+				Obstacles.add(c,kind,center,i+j*0.55)
+			else
+				deck(middle,23,kind == "zone" and 24 or 26,color)
+				if kind == "zone" then
+					for _, side in {-1,1} do
+						local edge=box(model,"Crack Zone border",x+side*11.6,0.055,z+middle,0.65,0.11,23,rgb("ff6930"))
+						edge.Material = Enum.Material.Neon
+					end
+					arch(model,x,z+middle-9,22,"CRACK ZONE",rgb("ff8a47"))
+					table.insert(c.zones,{z=z+middle, extent=10.5})
+					Obstacles.add(c,"ball",center+Vector3.new(0,0,4),i+j,{range=7})
+				else
+					Obstacles.add(c,kind,center,i+j*0.55,{speed=Obstacles.definitions[kind].speed and Obstacles.definitions[kind].speed*(1+(level-1)*0.08)})
+					for _, side in {-1,1} do
+						box(model,"Hazard stripe",x+side*12.4,0.03,z+middle,0.55,0.055,22.8,yellow)
+					end
+				end
+			end
+		end
+		local rel = start+53
+		deck(rel,14,30,ink)
+		checker(model,x,z+rel,28)
+		if i < #spec.stations then
+			local sign = box(model,"Checkpoint sign",x-13,2.4,z+rel,0.25,3,0.25,aqua)
+			billboard(sign,("CHECKPOINT %d"):format(i),9,2.2,Vector3.new(0,1.6,0),aqua)
+			table.insert(c.checks,z+rel)
+		end
+	end
+	c.finish = z+c.length+8
+	deck(c.length+9,18,32,ink)
+	arch(model,x,c.finish,29,"DELIVER HERE",yellow)
+	checker(model,x,c.finish,31)
+	model.Parent = workspace
+	return c
+end
+return W
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="StarterPlayer" referent="14">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="15">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="Folder" referent="16">
+        <Properties>
+          <string name="Name">EggClient</string>
+        </Properties>
+        <Item class="ModuleScript" referent="17">
+          <Properties>
+            <string name="Name">Audio</string>
+            <string name="Source"><![CDATA[local SoundService = game:GetService("SoundService")
+local Debris = game:GetService("Debris")
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("EggShared").Config)
+local A = {music=0.35, effects=0.65}
+
+function A.play(key)
+	local id = Config.audio[key]
+	if not id or id <= 0 then return end
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxassetid://" .. id
+	sound.Volume = key == "Music" and A.music or A.effects
+	sound.Looped = key == "Music"
+	sound.Parent = SoundService
+	sound:Play()
+	if sound.Looped then A.track = sound else Debris:AddItem(sound,20) end
+end
+
+function A.setLobby(enabled)
+	if enabled and not A.track then A.play("Music") end
+	if A.track then
+		A.track.Volume = A.music
+		if enabled then A.track:Resume() else A.track:Pause() end
+	end
+end
+return A
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="18">
+          <Properties>
+            <string name="Name">Main</string>
+            <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local Run = game:GetService("RunService")
+local Tween = game:GetService("TweenService")
+local Input = game:GetService("ContextActionService")
+local GuiService = game:GetService("GuiService")
+local Market = game:GetService("MarketplaceService")
+local Debris = game:GetService("Debris")
+local Shared = RS:WaitForChild("EggShared")
+local Config, Levels = require(Shared.Config),require(Shared.Levels)
+local Egg = require(Shared.EggModel)
+local Audio = require(script.Parent.Audio)
+local remote = Shared:WaitForChild("CourierEvent")
+local player = Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "CourierBroadcast"
+gui.ResetOnSpawn = false
+gui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local rgb = Color3.fromHex
+local navy, dark, white = rgb("242751"), rgb("343968"), rgb("fff8e6")
+local yellow, mint, pink, orange = rgb("ffda54"),rgb("74edcc"),rgb("ff739e"),rgb("ff9356")
+local state = {stage="Lobby", selected=1, level=1, deadline=0}
+local race = {hp=3, place=1, total=1, progress=0, check=0, checks=0, cooldown=0, recover=0}
+local profile = {skins={Classic=true},skin="Classic",trails={},records={},title=1}
+local tab, preview = nil,"Classic"
+local at = function() return workspace:GetServerTimeNow() end
+
+local function round(parent, radius)
+	local corner = Instance.new("UICorner",parent)
+	corner.CornerRadius = UDim.new(0,radius or 13)
+end
+local function border(parent,color,transparency)
+	local line=Instance.new("UIStroke",parent)
+	line.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+	line.Color=color
+	line.Transparency=transparency or 0
+	line.Thickness=1.5
+	return line
+end
+local function frame(parent, color, size, position, radius)
+	local f = Instance.new("Frame")
+	f.BackgroundColor3=color
+	f.BorderSizePixel=0
+	f.Size=size
+	f.Position=position or UDim2.new()
+	f.Parent=parent
+	round(f,radius)
+	return f
+end
+local function label(parent,text,size,position,fontSize,color,bold)
+	local f=Instance.new("TextLabel")
+	f.BackgroundTransparency=1
+	f.Size=size
+	f.Position=position or UDim2.new()
+	f.Font=bold and Enum.Font.GothamBlack or Enum.Font.GothamMedium
+	f.TextSize=fontSize or 15
+	f.TextColor3=color or white
+	f.Text=text
+	f.Parent=parent
+	return f
+end
+local function button(parent,text,color,callback)
+	local b=Instance.new("TextButton")
+	b.AutoButtonColor=true
+	b.BackgroundColor3=color
+	b.TextColor3=color == dark and white or navy
+	b.Text=text
+	b.TextSize=15
+	b.Font=Enum.Font.GothamBold
+	b.Size=UDim2.new(1,0,0,40)
+	b.Parent=parent
+	round(b,10)
+	b.Activated:Connect(function()
+		Audio.play("Click")
+		callback()
+	end)
+	return b
+end
+local function fire(action,value)
+	remote:FireServer(action,value)
+end
+
+local tint=Instance.new("Frame",gui)
+tint.BackgroundColor3=pink
+tint.BackgroundTransparency=1
+tint.Size=UDim2.fromScale(1,1)
+local top=frame(gui,navy,UDim2.new(1,-24,0,82),UDim2.new(0.5,0,0,8))
+top.AnchorPoint=Vector2.new(0.5,0)
+border(top,dark)
+local topLimit=Instance.new("UISizeConstraint",top)
+topLimit.MaxSize=Vector2.new(500,82)
+local line1=label(top,"",UDim2.new(1,-70,0,27),UDim2.fromOffset(12,4),16,white,true)
+line1.TextXAlignment=Enum.TextXAlignment.Left
+line1.TextTruncate=Enum.TextTruncate.AtEnd
+local timer=label(top,"",UDim2.fromOffset(62,27),UDim2.new(1,-69,0,4),18,yellow,true)
+local details=label(top,"",UDim2.new(1,-24,0,24),UDim2.fromOffset(12,31),13,mint)
+details.TextXAlignment=Enum.TextXAlignment.Left
+local track=frame(top,dark,UDim2.new(1,-24,0,6),UDim2.fromOffset(12,66),4)
+local fill=frame(track,mint,UDim2.fromScale(0,1),nil,4)
+
+local callout=label(gui,"",UDim2.new(1,0,0,86),UDim2.new(0,0,0.32,0),46,yellow,true)
+callout.TextStrokeColor3=navy
+callout.TextStrokeTransparency=0.25
+callout.Visible=false
+local toast=frame(gui,navy,UDim2.new(1,-34,0,38),UDim2.new(0.5,0,0,100))
+toast.AnchorPoint=Vector2.new(0.5,0)
+toast.Visible=false
+local toastLimit=Instance.new("UISizeConstraint",toast)
+toastLimit.MaxSize=Vector2.new(350,38)
+local toastText=label(toast,"",UDim2.fromScale(1,1),nil,14,yellow,true)
+local toastVersion=0
+local function notice(message)
+	toastVersion+=1
+	local current=toastVersion
+	toastText.Text=message
+	toast.Visible=true
+	task.delay(2,function() if current==toastVersion then toast.Visible=false end end)
+end
+
+local nav=frame(gui,navy,UDim2.new(0,94,0,224),UDim2.new(0,10,0.5,0))
+nav.AnchorPoint=Vector2.new(0,0.5)
+local navLayout=Instance.new("UIListLayout",nav)
+navLayout.Padding=UDim.new(0,5)
+navLayout.HorizontalAlignment=Enum.HorizontalAlignment.Center
+navLayout.VerticalAlignment=Enum.VerticalAlignment.Center
+local menu, menuTitle, list, layout
+local setTab
+local play=button(nav,"Play",yellow,function()
+	fire((state.queued or state.practiceQueued) and "lobby" or "queue")
+end)
+local menuButtons={play}
+for _, name in {"Courses","Egg Shop","Stats","Settings"} do
+	table.insert(menuButtons,button(nav,name,dark,function()
+		setTab(if name=="Egg Shop" then "Shop" else name)
+	end))
+end
+for _, b in menuButtons do b.Size=UDim2.fromOffset(82,36) end
+
+local shove=button(gui,"SHOVE",orange,function() fire("shove") end)
+shove.AnchorPoint=Vector2.new(1,0.5)
+shove.Position=UDim2.new(1,-12,0.62,0)
+shove.Size=UDim2.fromOffset(100,48)
+shove.Visible=false
+Input:BindAction("CourierShove",function(_,status)
+	if not shove.Visible then return Enum.ContextActionResult.Pass end
+	if status==Enum.UserInputState.Begin then fire("shove") end
+	return Enum.ContextActionResult.Sink
+end,false,Enum.KeyCode.E,Enum.KeyCode.ButtonX)
+local zoneLabel=label(gui,"CRACK ZONE  •  E / X TO SHOVE",UDim2.new(1,0,0,28),UDim2.fromOffset(0,91),14,orange,true)
+zoneLabel.TextStrokeTransparency=0.3
+zoneLabel.Visible=false
+
+menu=frame(gui,navy,UDim2.new(0.92,0,1,-108),UDim2.new(0.5,0,0,98),18)
+menu.AnchorPoint=Vector2.new(0.5,0)
+menu.Visible=false
+menu.Active=true
+border(menu,rgb("7777a6"))
+local menuLimit=Instance.new("UISizeConstraint",menu)
+menuLimit.MaxSize=Vector2.new(465,500)
+menuTitle=label(menu,"",UDim2.new(1,-75,0,52),UDim2.fromOffset(16,0),24,yellow,true)
+menuTitle.TextXAlignment=Enum.TextXAlignment.Left
+local close=button(menu,"Close",dark,function() setTab(nil) end)
+close.Size=UDim2.fromOffset(60,30)
+close.Position=UDim2.new(1,-70,0,10)
+list=Instance.new("ScrollingFrame",menu)
+list.BackgroundTransparency=1
+list.BorderSizePixel=0
+list.Position=UDim2.fromOffset(13,54)
+list.Size=UDim2.new(1,-26,1,-65)
+list.AutomaticCanvasSize=Enum.AutomaticSize.Y
+list.CanvasSize=UDim2.new()
+list.ScrollBarThickness=4
+list.ScrollBarImageColor3=mint
+layout=Instance.new("UIListLayout",list)
+layout.SortOrder=Enum.SortOrder.LayoutOrder
+layout.Padding=UDim.new(0,7)
+
+local function row(text,color)
+	local l=label(list,text,UDim2.new(1,-8,0,30),nil,14,color)
+	l.TextWrapped=true
+	return l
+end
+
+local function previewEgg()
+	local view=Instance.new("ViewportFrame",list)
+	view.Size=UDim2.new(1,-7,0,106)
+	view.BackgroundColor3=dark
+	view.Ambient=rgb("cdd2fa")
+	view.LightColor=white
+	view.LightDirection=Vector3.new(-1,-1,-1)
+	round(view,10)
+	local camera=Instance.new("Camera",view)
+	camera.CFrame=CFrame.lookAt(Vector3.new(2,1.1,4.5),Vector3.zero)
+	camera.FieldOfView=32
+	view.CurrentCamera=camera
+	local mesh=Egg.build(preview,1.45,true)
+	mesh.Parent=view
+end
+
+local draw
+draw=function()
+	for _, child in list:GetChildren() do
+		if child ~= layout then child:Destroy() end
+	end
+	menu.Visible=tab~=nil
+	nav.Visible=tab==nil and not state.racing
+	if not tab then return end
+	menuTitle.Text=({Shop="Egg shop",Courses="Green Meadows",Stats="Courier stats",Settings="Settings",Results="Race results"})[tab]
+	if tab=="Courses" then
+		if state.stage=="Voting" and state.queued then row("Vote among courses unlocked by the whole group",mint) end
+		for i, item in Levels do
+			if typeof(i)~="number" then continue end
+			local unlocked=i<=(player:GetAttribute("Unlocked") or 1)
+			local text=("%02d   %s%s"):format(i,item.name,unlocked and (state.selected==i and "  ✓" or "") or "   •   Locked")
+			if unlocked then button(list,text,state.selected==i and yellow or dark,function() fire("choose",tostring(i)) end)
+			else row(text) end
+		end
+		button(list,"Practice selected course",mint,function() fire("practice"); setTab(nil) end)
+	elseif tab=="Shop" then
+		previewEgg()
+		local skin=Config.bySkin[preview]
+		local cost=skin[3]
+		local owns=profile.skins[preview]
+		local enabled=Config.passes[preview] and Config.passes[preview]>0
+		row(skin[2],yellow)
+		if owns or typeof(cost)=="number" or enabled then
+			button(list,owns and (profile.skin==preview and "Equipped" or "Equip egg") or (enabled and "View Roblox price" or ("Buy & equip  •  %d coins"):format(cost)),mint,function()
+				fire("skin",preview)
+			end)
+		else
+			row(preview=="Cosmic" and "Future World 4 completion reward" or "Premium cosmetic unavailable")
+		end
+		for _, item in Config.skins do
+			button(list,item[2] .. (profile.skins[item[1]] and "   ✓" or ""),item[1]==preview and yellow or dark,function()
+				preview=item[1]
+				draw()
+				list.CanvasPosition=Vector2.zero
+				if GuiService.SelectedObject then GuiService.SelectedObject=list:FindFirstChildWhichIsA("TextButton") or close end
+			end)
+		end
+		row("COURIER TRAILS",mint)
+		button(list,"Remove trail",dark,function() fire("trail","") end)
+		for _, id in {"Lightning","Rainbow","VIP"} do
+			local price=Config.trails[id]
+			if price or profile.trails[id] then
+				local description=profile.trail==id and "Equipped" or (profile.trails[id] and "Equip" or ("%d coins"):format(price))
+				button(list,id .. "  •  " .. description,dark,function() fire("trail",id) end)
+			end
+		end
+	elseif tab=="Stats" then
+		row(("%d coins    /    %d wins    /    %d XP"):format(player:GetAttribute("Coins") or 0,player:GetAttribute("Wins") or 0,player:GetAttribute("XP") or 0),mint)
+		for i, title in Config.titles do
+			if i<5 and (player:GetAttribute("XP") or 0)>=Config.titleXP[i] then
+				button(list,title .. (profile.title==i and "  ✓" or ""),dark,function() fire("title",tostring(i)) end)
+			else row(title .. (i==5 and "  •  World 4 reward" or ("  •  %d XP"):format(Config.titleXP[i]))) end
+		end
+		for i=1,#Levels do
+			local record=profile.records[tostring(i)]
+			if record then row(("%s   %.2fs"):format(Levels[i].name,record),yellow) end
+		end
+	elseif tab=="Settings" then
+		for _, key in {"music","effects"} do
+			local heading=key=="music" and "Music" or "Sound effects"
+			button(list,("%s  •  %d%%"):format(heading,math.round(Audio[key]*100)),dark,function()
+				Audio[key]=if Audio[key]>=0.99 then 0 elseif Audio[key]==0 then 0.25 else math.min(1,Audio[key]+0.25)
+				Audio.setLobby(not state.racing)
+				draw()
+			end)
+		end
+	elseif tab=="Results" then
+		local result=state.result
+		if result and not result.dnf then
+			row(result.practice and "Practice complete" or ("Finished #%d"):format(result.place),mint)
+			row(("%.2fs    /    %d of 3 shell    /    +%d coins"):format(result.time,result.hp,result.coins),yellow)
+			if result.record then row("NEW PERSONAL RECORD",mint) end
+		elseif result then row(("Time expired  •  %d%% complete  •  %d of 3 shell"):format(math.floor(result.progress*100),result.hp),orange) end
+		for _, entry in state.scoreboard or {} do row(("%d   %s   /   %.2fs"):format(entry.place,entry.name,entry.time)) end
+		button(list,"Next race",yellow,function() fire("next"); setTab(nil) end)
+		button(list,"Return to lobby",dark,function() fire("lobby"); setTab(nil) end)
+	end
+end
+
+setTab=function(name)
+	if name and tab==name and name~="Results" then name=nil end
+	tab=name
+	draw()
+	list.CanvasPosition=Vector2.zero
+	if GuiService.SelectedObject then
+		GuiService.SelectedObject=if name then close elseif nav.Visible then play else nil
+	end
+end
+
+local function confetti()
+	for i=1,26 do
+		local bit=frame(gui,({yellow,mint,pink,orange})[i%4+1],UDim2.fromOffset(7,12),UDim2.fromScale(0.5,0.47),2)
+		bit.Rotation=i*33
+		Tween:Create(bit,TweenInfo.new(0.9+i%5*0.1,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+			Position=UDim2.fromScale(0.5+math.cos(i)*0.48,0.48+math.sin(i)*0.43),
+			Rotation=i*68,BackgroundTransparency=1,
+		}):Play()
+		Debris:AddItem(bit,1.45)
+	end
+end
+
+local lastCount, showGo = nil,0
+local fade=Instance.new("Frame",gui)
+fade.Size=UDim2.fromScale(1,1)
+fade.BackgroundColor3=navy
+fade.BackgroundTransparency=1
+fade.ZIndex=20
+local function cameraTransition()
+	fade.BackgroundTransparency=0.15
+	Tween:Create(fade,TweenInfo.new(0.45,Enum.EasingStyle.Quad),{BackgroundTransparency=1}):Play()
+end
+remote.OnClientEvent:Connect(function(kind,value,extra)
+	if kind=="State" then
+		local before=state.stage
+		state=value
+		if state.racing and state.stage~=before and (state.stage=="Preparation" or state.stage=="Returning") then
+			cameraTransition()
+		end
+		if state.stage=="Countdown" and before~="Countdown" then
+			race={hp=3,place=1,total=state.total,progress=0,check=0,checks=0,cooldown=0,recover=0}
+			lastCount=nil
+		elseif state.stage=="Race" and before=="Countdown" and state.racing then
+			showGo=at()+0.75
+			Audio.play("Start")
+		end
+		Audio.setLobby(not state.racing)
+		if state.stage=="Returning" or (not state.racing and tab=="Results") then setTab(nil)
+		elseif state.result and state.racing and tab~="Results" then setTab("Results")
+		elseif state.racing and not state.result and tab then setTab(nil)
+		elseif state.stage=="Voting" and state.queued and before~="Voting" then setTab("Courses")
+		elseif tab=="Courses" or (tab=="Results" and state.stage=="Results") then draw()
+		else nav.Visible=tab==nil and not state.racing end
+	elseif kind=="Race" then
+		if value.zone and not race.zone and not state.practice and not state.solo then notice("CRACK ZONE  •  Shoves are live") end
+		race=value
+	elseif kind=="Profile" then
+		profile=value
+		if tab=="Stats" or tab=="Shop" then
+			local position=list.CanvasPosition
+			local selected=GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(list)
+			draw()
+			list.CanvasPosition=position
+			if selected then GuiService.SelectedObject=close end
+		end
+	elseif kind=="Open" then setTab(value)
+	elseif kind=="Notice" then notice(value)
+	elseif kind=="Pass" then
+		local ok=pcall(Market.PromptGamePassPurchase,Market,player,value)
+		if not ok then notice("Roblox purchase prompt unavailable") end
+	elseif kind=="FX" then
+		Audio.play(value)
+		if value=="Crack" or value=="Break" then
+			tint.BackgroundTransparency=0.65
+			Tween:Create(tint,TweenInfo.new(0.38),{BackgroundTransparency=1}):Play()
+			notice(value=="Break" and "EGG BROKE  •  Returning to checkpoint" or (extra==1 and "ONE SHELL LEFT" or "SHELL CRACKED"))
+		elseif value=="Checkpoint" then notice(extra==0 and "Fresh egg" or ("CHECKPOINT %d"):format(extra))
+		elseif value=="Finish" then
+			confetti()
+			if extra.coins>0 then Audio.play("Coins") end
+			if extra.place==1 then Audio.play("Victory") end
+		end
+	end
+end)
+
+local function clock(n)
+	n=math.max(0,math.ceil(n))
+	return ("%d:%02d"):format(n//60,n%60)
+end
+local display=0
+Run.RenderStepped:Connect(function(dt)
+	display+=dt
+	local current=at()
+	for _, courier in Players:GetPlayers() do
+		local char=courier.Character
+		local root=char and char:FindFirstChild("HumanoidRootPart")
+		local egg=char and char:FindFirstChild("CourierEgg")
+		local shell=egg and egg.PrimaryPart
+		local motor=shell and shell:FindFirstChild("EggMotor")
+		if root and motor then
+			local velocity=root.AssemblyLinearVelocity
+			local amplitude=math.clamp(velocity.Magnitude/16,0.2,1)
+			motor.Transform=CFrame.new(0,math.sin(current*11)*0.084*amplitude,0)*CFrame.Angles(math.sin(current*6)*0.12*amplitude,0,math.cos(current*9)*0.14*amplitude)
+			if egg:GetAttribute("Skin")=="Rainbow" then
+				local rainbow=Color3.fromHSV((current%4)/4,0.66,1)
+				shell.Color=rainbow
+				local crown=egg:FindFirstChild("Crown")
+				if crown then crown.Color=rainbow end
+			end
+		end
+	end
+	if display<0.08 then return end
+	display=0
+	local coins=player:GetAttribute("Coins") or 0
+	local racing=state.racing and (state.stage=="Race" or state.stage=="Countdown" or state.stage=="Preparation")
+	local left=state.deadline-current
+	timer.Text=state.stage=="Lobby" and "" or clock(left)
+	if racing then
+		line1.Text=("%02d  /  %s"):format(state.level,Levels[state.level].name)
+		local shells=string.rep("●",race.hp)..string.rep("○",3-race.hp)
+		details.Text=("%s   %d/%d   CP %d/%d   %d%%   ◈ %d"):format(shells,race.place,race.total,race.check,race.checks,math.floor(race.progress*100),coins)
+		details.TextColor3=race.hp<=1 and orange or mint
+		fill.Size=UDim2.fromScale(race.progress,1)
+	else
+		line1.Text="DON’T CRACK THE EGG!"
+		local status=({Lobby="Courier lobby",Intermission="Race opens soon",Voting="Map voting",Preparation="Course loading",Countdown="Race starting",Race="Race in progress",Results="Race results",Returning="Returning to lobby"})[state.stage]
+		details.Text=status.."    /    ◈ "..coins.." coins"
+		details.TextColor3=mint
+		fill.Size=UDim2.fromScale(0,1)
+	end
+	play.Text=(state.queued or state.practiceQueued) and "Cancel" or "Play"
+	local showShove=racing and state.stage=="Race" and race.zone and not state.practice and not state.solo and not state.result and race.recover<=current
+	shove.Visible=showShove==true
+	zoneLabel.Visible=shove.Visible
+	local cd=math.max(0,math.ceil(race.cooldown-current))
+	shove.Text=cd>0 and ("%ds"):format(cd) or "SHOVE"
+	shove.BackgroundColor3=cd>0 and dark or orange
+	shove.TextColor3=cd>0 and white or navy
+	if racing and state.stage=="Countdown" then
+		local count=math.max(1,math.ceil(left))
+		callout.Visible=true
+		callout.Text=tostring(count)
+		if lastCount~=count then lastCount=count; Audio.play("Countdown") end
+	elseif racing and current<showGo then
+		callout.Visible=true
+		callout.Text="GO!"
+	elseif racing and race.recover>current then
+		callout.Visible=true
+		callout.Text=("Fresh egg in %ds"):format(math.ceil(race.recover-current))
+		callout.TextSize=30
+	else
+		callout.Visible=false
+		callout.TextSize=46
+	end
+end)
+
+Input:BindAction("CourierCloseMenu",function(_,status)
+	if not tab then return Enum.ContextActionResult.Pass end
+	if status==Enum.UserInputState.Begin then setTab(nil) end
+	return Enum.ContextActionResult.Sink
+end,false,Enum.KeyCode.ButtonB)
+
+Audio.setLobby(true)
+fire("hello")
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="Workspace" referent="19">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="NeedsPivotMigration">false</bool>
+      <bool name="StreamingEnabled">false</bool>
+    </Properties>
+  </Item>
+</roblox>
