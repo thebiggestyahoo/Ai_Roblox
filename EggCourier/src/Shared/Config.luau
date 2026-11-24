@@ -1,9 +1,10 @@
 local C = {}
-C.maxPlayers = 12
+C.maxPlayers = 15
 C.intermission = 15
-C.voting = 8
+C.draft = 8
 C.countdown = 3
 C.results = 14
+C.heatResults = 6
 C.protection = 1.15
 C.shoveCooldown = 5
 C.shoveRange = 8
@@ -13,6 +14,13 @@ C.audio = {
 	Coins = 0, Shove = 0, Finish = 0, Victory = 0, Click = 0,
 }
 C.passes = {Golden = 0, Rainbow = 0, Galaxy = 0, Royal = 0, VIP = 0}
+-- Set productId to the matching repeatable Developer Product ID in Creator Dashboard.
+-- The Roblox purchase prompt displays the actual price. Keep disabled products at 0.
+C.coinPacks = {
+	{key = "starter", name = "Starter pack", coins = 400, suggestedRobux = 29, productId = 0},
+	{key = "courier", name = "Courier pack", coins = 1000, suggestedRobux = 59, productId = 0},
+	{key = "collector", name = "Collector pack", coins = 2400, suggestedRobux = 119, productId = 0},
+}
 C.skins = {
 	{"Classic", "Classic Egg", 0, {255, 240, 210}, {255, 185, 120}},
 	{"Chocolate", "Chocolate Egg", 250, {113, 57, 42}, {235, 154, 98}},

@@ -15,9 +15,32 @@ expect(Rules.crossing(point(0,10,7),point(0,10,9),8,0,12),nil)
 expect(Rules.crossing(point(11,4,7),point(13,4,9),8,0,12),0.5)
 expect(Rules.crossing(point(0,10,7),point(0,10,9),8,0,12,0.5,11),0.5)
 
-for players, slots in {0,1,1,2,3,3,4,5,5,6,6,7,8} do
-	expect(Rules.slots(players-1),slots)
+local remaining = 15
+for heat, slots in {12,9,6,3,2,1} do
+	expect(Rules.slots(15,heat,remaining),slots)
+	remaining = slots
 end
+expect(Rules.slots(15,2,5),5)
+expect(Rules.slots(8,1,8),7)
+expect(Rules.slots(2,5,2),2)
+expect(Rules.slots(2,6,2),1)
+
+local random = {seed=563}
+function random:NextInteger(low, high)
+	self.seed = (self.seed * 48271) % 2147483647
+	return low + self.seed % (high-low+1)
+end
+local plans = {}
+for _=1,250 do
+	local draft = Rules.drawMaps(random)
+	expect(#draft,5)
+	assert(draft[1] <= 2 and draft[5] >= 8)
+	for i=2,#draft do assert(draft[i] > draft[i-1] and Levels[draft[i]]) end
+	plans[table.concat(draft,",")] = true
+end
+local planCount = 0
+for _ in plans do planCount += 1 end
+expect(planCount,40)
 
 local courier = {coins=0,xp=0,wins=0,unlocked=1,records={["1"]=21}}
 local coins, personal = Rules.complete(courier,1,39,true,1,true)

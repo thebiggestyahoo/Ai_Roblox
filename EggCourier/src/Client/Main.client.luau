@@ -21,6 +21,7 @@ local rgb = Color3.fromHex
 local ink, charcoal, muted = rgb("20281f"), rgb("374138"), rgb("596451")
 local paper, cream = rgb("fff5d8"), rgb("ebe1c4")
 local yellow, lime, rust = rgb("ffc639"), rgb("d3f480"), rgb("ff7657")
+local winnerRed = rgb("fa5451")
 local typeface = Enum.Font.GothamMedium
 local heavy = Enum.Font.GothamBlack
 local digits = Enum.Font.Code
@@ -28,7 +29,11 @@ local state = {stage = "Lobby", selected = 1, level = 1, deadline = 0}
 local race = {hp = 3, place = 1, total = 1, progress = 0, cooldown = 0, recover = 0}
 local profile = {skins = {Classic = true}, skin = "Classic", trails = {}, records = {}, title = 1}
 local tab, preview = nil, "Classic"
+local lockerPage = "Eggs"
 local setTab, draw
+local advanceNote
+local lockerBalance
+local auraToggle
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "CourierBroadcast"
@@ -125,15 +130,31 @@ local function isGamepad()
 	return UserInputService:GetLastInputType().Name:match("^Gamepad") ~= nil
 end
 
+local function heatName(heat)
+	local heats = state.heats or 5
+	if state.duel or heat > heats then return "FINAL DUEL" end
+	return ("HEAT %02d / %02d"):format(heat, heats)
+end
+
+local function showDock()
+	return tab == nil and not state.racing and not state.room
+end
+
+local function hasResult()
+	return typeof(state.result) == "table" and state.stage ~= "Returning"
+end
+
 local root = frame(gui, nil, UDim2.fromScale(1, 1))
 local tint = frame(root, rust, UDim2.fromScale(1, 1))
 tint.BackgroundTransparency = 1
 
-local hud = frame(root, ink, UDim2.new(1, -30, 0, 69), UDim2.new(0.5, 0, 0, 8), 7)
+local hud = frame(root, ink, UDim2.new(1, -30, 0, 86), UDim2.new(0.5, 0, 0, 8), 7)
 hud.AnchorPoint = Vector2.new(0.5, 0)
-limit(hud, 340, 69)
-local courseName = left(label(hud, "", paper, UDim2.new(1, -117, 0, 22), UDim2.fromOffset(12, 5), 13, heavy))
-local raceStatus = left(label(hud, "", lime, UDim2.new(1, -137, 0, 20), UDim2.fromOffset(12, 30), 12, digits))
+limit(hud, 340, 86)
+local raceHeat = left(label(hud, "", yellow, UDim2.new(1, -94, 0, 16), UDim2.fromOffset(12, 6), 11, digits))
+local courseName = left(label(hud, "", paper, UDim2.new(1, -80, 0, 25), UDim2.fromOffset(12, 22), 15, heavy))
+local position = left(label(hud, "", paper, UDim2.fromOffset(34, 19), UDim2.fromOffset(12, 50), 12, heavy))
+local raceStatus = left(label(hud, "", lime, UDim2.new(1, -64, 0, 20), UDim2.fromOffset(51, 49), 12, digits))
 local raceTime = label(hud, "0:00", yellow, UDim2.fromOffset(61, 28), UDim2.new(1, -70, 0, 3), 24, digits)
 raceTime.TextXAlignment = Enum.TextXAlignment.Right
 local eggs = {}
@@ -142,7 +163,7 @@ for index = 1, 3 do
 	icon.Rotation = 12
 	eggs[index] = icon
 end
-local progress = frame(hud, charcoal, UDim2.new(1, -24, 0, 3), UDim2.fromOffset(12, 59), 2)
+local progress = frame(hud, charcoal, UDim2.new(1, -24, 0, 3), UDim2.fromOffset(12, 76), 2)
 local progressFill = frame(progress, lime, UDim2.fromScale(0, 1), nil, 2)
 
 local wallet = frame(root, paper, UDim2.fromOffset(93, 33), UDim2.new(1, -13, 0, 9), 5)
@@ -157,7 +178,7 @@ local dock = frame(root, ink, UDim2.new(1, -24, 0, 52), UDim2.new(0.5, 0, 1, -14
 dock.AnchorPoint = Vector2.new(0.5, 1)
 limit(dock, 448, 52)
 local dockInterior = frame(dock, nil, UDim2.new(1, -12, 1, -12), UDim2.fromOffset(6, 6))
-local play = button(dockInterior, "RACE", yellow, ink, function()
+local play = button(dockInterior, "QUEUE", yellow, ink, function()
 	fire((state.queued or state.practiceQueued) and "lobby" or "queue")
 end)
 play.Size = UDim2.new(0.25, -4, 1, 0)
@@ -169,10 +190,17 @@ for index, item in ipairs({{"ISLANDS", "Courses"}, {"LOCKER", "Shop"}, {"STATS",
 	option.Size = UDim2.new(0.1875, -4, 1, 0)
 	option.Position = UDim2.fromScale(0.25 + (index - 1) * 0.1875, 0)
 end
-local queueStatus = label(root, "", paper, UDim2.new(1, -40, 0, 26), UDim2.new(0.5, 0, 1, -74), 13, heavy)
+local queueStatus = label(root, "", paper, UDim2.new(1, -40, 0, 26), UDim2.new(0.5, 0, 1, -68), 13, heavy)
 queueStatus.AnchorPoint = Vector2.new(0.5, 1)
 queueStatus.TextStrokeColor3 = ink
 queueStatus.TextStrokeTransparency = 0.16
+
+local staging = frame(root, ink, UDim2.new(1, -30, 0, 57), UDim2.new(0.5, 0, 0, 8), 7)
+staging.AnchorPoint = Vector2.new(0.5, 0)
+staging.Visible = false
+limit(staging, 340, 57)
+local stagingTitle = left(label(staging, "", yellow, UDim2.new(1, -24, 0, 21), UDim2.fromOffset(12, 5), 14, heavy))
+local stagingBody = left(label(staging, "", paper, UDim2.new(1, -24, 0, 21), UDim2.fromOffset(12, 28), 12, digits))
 
 local banner = label(root, "", paper, UDim2.new(1, -20, 0, 90), UDim2.new(0.5, 0, 0.33, 0), 72, heavy)
 banner.AnchorPoint = Vector2.new(0.5, 0)
@@ -180,7 +208,7 @@ banner.TextStrokeColor3 = ink
 banner.TextStrokeTransparency = 0.03
 banner.Visible = false
 
-local toast = frame(root, ink, UDim2.new(1, -36, 0, 31), UDim2.new(0.5, 0, 0, 85), 5)
+local toast = frame(root, ink, UDim2.new(1, -36, 0, 31), UDim2.new(0.5, 0, 0, 103), 5)
 toast.AnchorPoint = Vector2.new(0.5, 0)
 toast.Visible = false
 toast.ZIndex = 12
@@ -195,6 +223,82 @@ local function notice(message)
 	task.delay(1.9, function()
 		if current == toastVersion then toast.Visible = false end
 	end)
+end
+
+local draft = frame(root, ink, UDim2.new(1, -24, 0, 233), UDim2.fromScale(0.5, 0.5), 7)
+draft.AnchorPoint = Vector2.new(0.5, 0.5)
+draft.ZIndex = 11
+draft.Visible = false
+limit(draft, 400, 233)
+local draftScale = Instance.new("UIScale")
+draftScale.Parent = draft
+outline(draft, paper, 1.5)
+frame(draft, yellow, UDim2.new(1, 0, 0, 4), nil, 2)
+left(label(draft, "MAP DRAW", yellow, UDim2.new(1, -120, 0, 24), UDim2.fromOffset(12, 10), 18, heavy))
+local draftCounter = label(draft, "", paper, UDim2.fromOffset(71, 24), UDim2.new(1, -82, 0, 11), 13, digits)
+draftCounter.TextXAlignment = Enum.TextXAlignment.Right
+local reel = frame(draft, charcoal, UDim2.new(1, -24, 0, 47), UDim2.fromOffset(12, 39), 4)
+reel.ClipsDescendants = true
+frame(reel, paper, UDim2.new(1, 0, 0, 25), UDim2.fromOffset(0, 11))
+local reelNames = {}
+for index = 1, 3 do
+	reelNames[index] = label(reel, "", ink, UDim2.new(1, -16, 0, 25), UDim2.fromOffset(8, 11), 15, heavy)
+end
+local picks = {}
+for index = 1, 5 do
+	local row = frame(draft, charcoal, UDim2.new(1, -24, 0, 23), UDim2.fromOffset(12, 93 + (index - 1) * 26), 3)
+	local heat = left(label(row, ("H%02d"):format(index), yellow, UDim2.fromOffset(26, 23), UDim2.fromOffset(6, 0), 11, digits))
+	local name = left(label(row, "", paper, UDim2.new(1, -108, 1, 0), UDim2.fromOffset(35, 0), 12, heavy))
+	local rating = label(row, "", lime, UDim2.fromOffset(68, 23), UDim2.new(1, -73, 0, 0), 10, digits)
+	rating.TextXAlignment = Enum.TextXAlignment.Right
+	picks[index] = {row = row, heat = heat, name = name, rating = rating}
+end
+
+local lastDraftStart, shownPicks = nil, 0
+local function updateDraft(current)
+	local maps = state.maps
+	draft.Visible = state.stage == "Draft" and state.room == true and maps ~= nil and #maps > 0
+	if not draft.Visible then return end
+	draftScale.Scale = math.clamp((root.AbsoluteSize.Y - 16) / 233, 0.65, 1)
+	local started = state.draftStarted or state.deadline - 8
+	if started ~= lastDraftStart then
+		lastDraftStart = started
+		shownPicks = 0
+	end
+	local cadence = math.max((state.deadline - started) * 0.91 / #maps, 0.1)
+	local elapsed = math.max(current - started, 0)
+	local heat = math.min(math.floor(elapsed / cadence) + 1, #maps)
+	local ratio = math.clamp((elapsed - (heat - 1) * cadence) / (cadence * 0.75), 0, 1)
+	local settled = ratio >= 1 and heat or heat - 1
+	local steps = 10
+	local offset = (1 - (1 - ratio) ^ 2.5) * steps
+	local step = math.floor(offset)
+	for index, name in ipairs(reelNames) do
+		local ticket = step + index - 2
+		local candidate = (heat * 7 + ticket * 3) % #Levels + 1
+		if ticket >= steps then candidate = maps[heat] end
+		local item = Levels[candidate]
+		local y = 11 + (index - 2 - (offset - step)) * 25
+		name.Position = UDim2.fromOffset(8, y)
+		name.Text = item and item.name or ""
+		name.TextColor3 = math.abs(y - 11) < 13 and ink or paper
+	end
+	draftCounter.Text = ("%02d / %02d"):format(settled, #maps)
+	for index, card in ipairs(picks) do
+		local item = Levels[maps[index]]
+		local picked = index <= settled and item ~= nil
+		card.row.Visible = item ~= nil
+		card.row.BackgroundColor3 = if index == heat then lime else charcoal
+		card.heat.TextColor3 = if index == heat then ink else yellow
+		card.name.TextColor3 = if index == heat then ink else paper
+		card.rating.TextColor3 = if index == heat then ink else lime
+		card.name.Text = if picked then item.name elseif index == heat then "Drawing…" else "—"
+		card.rating.Text = if picked then string.upper(item.rating or "") else ""
+	end
+	if settled > shownPicks then
+		shownPicks = settled
+		Audio.play("Click")
+	end
 end
 
 local shove = button(root, "SHOVE", rust, ink, function() fire("shove") end)
@@ -280,9 +384,7 @@ local function listButton(text, color, textColor, callback)
 end
 
 local function showCourses()
-	local voting = state.stage == "Voting" and state.queued
 	local unlocked = player:GetAttribute("Unlocked") or 1
-	if voting then row("Choose a course for the next heat", ink, 13, heavy) end
 	local previousIsland
 	for index, course in ipairs(Levels) do
 		local island = course.island or "Green Meadows"
@@ -294,7 +396,7 @@ local function showCourses()
 		local selected = index == state.selected
 		local card = append(frame(list, selected and cream or paper, UDim2.new(1, -8, 0, 56), nil, 5))
 		outline(card, selected and muted or cream)
-		local detailWidth = voting and -10 or -83
+		local detailWidth = -83
 		local title = ("%02d   %s"):format(index, course.name)
 		if available then
 			local select = button(card, title, selected and cream or paper, ink, function() fire("choose", tostring(index)) end)
@@ -304,22 +406,27 @@ local function showCourses()
 		else
 			left(label(card, title, muted, UDim2.new(1, detailWidth, 0, 28), UDim2.fromOffset(6, 2), 13, heavy))
 		end
-		local detail = if selected then "SELECTED" elseif available then (course.rating or "OPEN") else "LOCKED FOR RACE"
-		if available and not selected and typeof(detail) ~= "string" then detail = tostring(detail) end
+		local detail = if selected then "SOLO PICK" elseif available then course.rating else "LOCKED FOR SOLO"
 		left(label(card, string.upper(detail), muted, UDim2.new(1, detailWidth, 0, 16), UDim2.fromOffset(6, 29), 10, digits))
-		if not voting then
-			local practice = button(card, "PRACTICE", ink, paper, function()
-				fire("practice", tostring(index))
-				setTab(nil)
-			end)
-			practice.Size = UDim2.fromOffset(69, 44)
-			practice.Position = UDim2.new(1, -75, 0, 6)
-			practice.TextSize = 10
-		end
+		local practice = button(card, "PRACTICE", ink, paper, function()
+			fire("practice", tostring(index))
+			setTab(nil)
+		end)
+		practice.Size = UDim2.fromOffset(69, 44)
+		practice.Position = UDim2.new(1, -75, 0, 6)
+		practice.TextSize = 10
 	end
 end
 
-local function showShop()
+local function restyleLocker(page)
+	lockerPage = page
+	local gamepad = isGamepad()
+	draw()
+	list.CanvasPosition = Vector2.zero
+	if gamepad then GuiService.SelectedObject = close end
+end
+
+local function showEggs()
 	local skin = Config.bySkin[preview]
 	local cost = skin[3]
 	local owned = profile.skins[preview]
@@ -343,10 +450,13 @@ local function showShop()
 	view.CurrentCamera = camera
 	local model = Egg.build(preview, 1.4, true)
 	model.Parent = view
+	local skinMark = frame(card, accent, UDim2.fromOffset(11, 16), UDim2.new(0.42, 6, 0, 19), 6)
+	skinMark.Rotation = 15
 
-	local title = left(label(card, skin[2], paper, UDim2.new(0.58, -17, 0, 52), UDim2.new(0.42, 5, 0, 16), 19, heavy))
+	local title = left(label(card, skin[2], paper, UDim2.new(0.58, -31, 0, 52), UDim2.new(0.42, 20, 0, 11), 18, heavy))
 	title.TextWrapped = true
 	title.TextTruncate = Enum.TextTruncate.None
+	lockerBalance = left(label(card, "", lime, UDim2.new(0.58, -17, 0, 17), UDim2.new(0.42, 6, 0, 68), 11, digits))
 	local action
 	if owned and profile.skin == preview then
 		action = "EQUIPPED"
@@ -366,26 +476,42 @@ local function showShop()
 		left(label(card, message, lime, UDim2.new(0.58, -17, 0, 34), UDim2.new(0.42, 5, 1, -47), 11, heavy))
 	end
 
-	local swatches = append(frame(list, nil, UDim2.new(1, -7, 0, math.ceil(#Config.skins / 4) * 43)))
+	local collected = 0
+	for _, item in ipairs(Config.skins) do
+		if profile.skins[item[1]] then collected += 1 end
+	end
+	row(("COLLECTION   %d / %d"):format(collected, #Config.skins), muted, 11, heavy, 24)
+	local swatches = append(frame(list, nil, UDim2.new(1, -7, 0, math.ceil(#Config.skins / 4) * 61)))
 	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.new(0.25, -5, 0, 36)
+	grid.CellSize = UDim2.new(0.25, -5, 0, 54)
 	grid.CellPadding = UDim2.fromOffset(5, 7)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = swatches
 	for index, item in ipairs(Config.skins) do
-		local tile = button(swatches, item[1], item[1] == preview and ink or cream, item[1] == preview and paper or ink, function()
-			local gamepad = isGamepad()
+		local active = item[1] == preview
+		local tile = button(swatches, item[1], active and ink or cream, active and paper or ink, function()
 			preview = item[1]
-			draw()
-			if gamepad then GuiService.SelectedObject = close end
+			restyleLocker("Eggs")
 		end)
 		tile.LayoutOrder = index
 		tile.TextSize = 10
-		local color = Color3.fromRGB(table.unpack(item[4]))
-		local mark = frame(tile, color, UDim2.new(1, -10, 0, 3), UDim2.new(0, 5, 1, -5), 2)
-		if profile.skins[item[1]] then outline(mark, item[1] == preview and paper or muted) end
+		tile.TextYAlignment = Enum.TextYAlignment.Bottom
+		if active then outline(tile, yellow, 1.5) end
+		local shellColor = Color3.fromRGB(table.unpack(item[4]))
+		local markColor = Color3.fromRGB(table.unpack(item[5]))
+		local icon = frame(tile, shellColor, UDim2.fromOffset(18, 26), UDim2.new(0.5, -9, 0, 6), 10)
+		icon.Rotation = -12 + index % 5 * 5
+		outline(icon, active and paper or ink, 1)
+		local mark = frame(icon, markColor, UDim2.fromOffset(9, 6), UDim2.fromOffset(4, 13), 3)
+		mark.Rotation = 12
+		if profile.skins[item[1]] then
+			local stamp = frame(tile, lime, UDim2.fromOffset(7, 7), UDim2.new(1, -11, 0, 4), 4)
+			outline(stamp, ink)
+		end
 	end
-	row("TRAILS", muted, 11, heavy, 23)
+end
+
+local function showTrails()
 	listButton("Remove trail", cream, ink, function() fire("trail", "") end)
 	for _, id in {"Lightning", "Rainbow", "VIP"} do
 		local price = Config.trails[id]
@@ -396,8 +522,67 @@ local function showShop()
 	end
 end
 
+local function showCoinPacks()
+	lockerBalance = row("", ink, 14, heavy)
+	local detail = row("Coins buy eggs and trails.", muted, 12, typeface)
+	detail.TextWrapped = true
+	detail.TextTruncate = Enum.TextTruncate.None
+	for _, entry in ipairs(Config.coinPacks or {}) do
+		local active = typeof(entry.productId) == "number" and entry.productId > 0
+		local card = append(frame(list, cream, UDim2.new(1, -7, 0, 75), nil, 6))
+		local stack = frame(card, yellow, UDim2.fromOffset(28, 28), UDim2.fromOffset(11, 22), 14)
+		outline(stack, ink, 1.5)
+		label(stack, "•", ink, UDim2.fromScale(1, 1), nil, 18, heavy)
+		left(label(card, entry.name, ink, UDim2.new(1, -174, 0, 22), UDim2.fromOffset(47, 12), 14, heavy))
+		left(label(card, ("%d coins"):format(entry.coins), muted, UDim2.new(1, -174, 0, 20), UDim2.fromOffset(47, 38), 13, digits))
+		if active then
+			local offer = button(card, "VIEW ROBUX PRICE", ink, paper, function() fire("coins", entry.key) end)
+			offer.Size = UDim2.fromOffset(108, 42)
+			offer.Position = UDim2.new(1, -118, 0, 17)
+			offer.TextSize = 10
+		else
+			label(card, "UNAVAILABLE", muted, UDim2.fromOffset(105, 42), UDim2.new(1, -118, 0, 17), 10, heavy)
+		end
+	end
+end
+
+local function showShop()
+	local tabsBar = append(frame(list, ink, UDim2.new(1, -7, 0, 42), nil, 5))
+	for index, page in ipairs({"Eggs", "Trails", "Coin packs"}) do
+		local active = lockerPage == page
+		local option = button(tabsBar, string.upper(page), active and yellow or charcoal, active and ink or paper, function()
+			restyleLocker(page)
+		end)
+		option.Size = UDim2.new(1 / 3, -6, 1, -10)
+		option.Position = UDim2.new((index - 1) / 3, 4, 0, 5)
+		option.TextSize = 11
+	end
+	if lockerPage == "Trails" then showTrails()
+	elseif lockerPage == "Coin packs" then showCoinPacks()
+	else showEggs() end
+end
+
 local function showStats()
-	row(("%d coins     %d wins     %d XP"):format(player:GetAttribute("Coins") or 0, player:GetAttribute("Wins") or 0, player:GetAttribute("XP") or 0), ink, 16, digits, 33)
+	local wins = player:GetAttribute("Wins") or 0
+	row(("%d coins     %d wins     %d XP"):format(player:GetAttribute("Coins") or 0, wins, player:GetAttribute("XP") or 0), ink, 16, digits, 33)
+	local earned = wins >= 1
+	local proof = append(frame(list, ink, UDim2.new(1, -7, 0, 74), nil, 6))
+	local insignia = frame(proof, earned and winnerRed or charcoal, UDim2.fromOffset(24, 33), UDim2.fromOffset(14, 19), 12)
+	outline(insignia, earned and paper or muted, 1.5)
+	insignia.Rotation = 14
+	local textWidth = earned and -145 or -56
+	left(label(proof, "Winner aura", paper, UDim2.new(1, textWidth, 0, 23), UDim2.fromOffset(48, 10), 15, heavy))
+	local status = earned and "1 / 1 WIN" or "0 / 1 WIN"
+	left(label(proof, status, earned and winnerRed or cream, UDim2.new(1, textWidth, 0, 21), UDim2.fromOffset(48, 39), 12, digits))
+	if earned then
+		local equipped = player:GetAttribute("WinnerAura") ~= false
+		auraToggle = button(proof, equipped and "AURA ON" or "AURA OFF", equipped and winnerRed or charcoal, equipped and ink or paper, function()
+			fire("aura")
+		end)
+		auraToggle.Size = UDim2.fromOffset(76, 39)
+		auraToggle.Position = UDim2.new(1, -87, 0, 17)
+		auraToggle.TextSize = 11
+	end
 	for index, title in Config.titles do
 		if index < 5 and (player:GetAttribute("XP") or 0) >= Config.titleXP[index] then
 			listButton(title .. (profile.title == index and "  ✓" or ""), cream, ink, function() fire("title", tostring(index)) end)
@@ -431,32 +616,53 @@ local function showResults()
 	local result = state.result
 	if result then
 		local finished = not result.out and not result.dnf
+		local champion = result.champion == true
 		local card = append(frame(list, ink, UDim2.new(1, -7, 0, 95), nil, 6))
-		local place = finished and ("%02d"):format(result.place) or "OUT"
-		label(card, place, finished and lime or rust, UDim2.fromOffset(103, 89), UDim2.fromOffset(3, 1), 39, heavy)
+		local place = if champion then "WIN" elseif finished then ("%02d"):format(result.place or 1) else "OUT"
+		local highlight = if champion then winnerRed elseif finished then lime else rust
+		label(card, place, highlight, UDim2.fromOffset(103, 89), UDim2.fromOffset(3, 1), 39, heavy)
 		frame(card, charcoal, UDim2.fromOffset(1, 62), UDim2.fromOffset(106, 16))
 		local headline
-		if result.practice and finished then headline = "PRACTICE CLEAR"
+		if champion then headline = "CHAMPION"
+		elseif result.practice and finished then headline = "PRACTICE CLEAR"
 		elseif finished and (state.slots or 0) > 0 and not state.solo then headline = "QUALIFIED"
 		elseif finished then headline = "FINISHED"
 		else headline = "ELIMINATED" end
 		left(label(card, headline, paper, UDim2.new(1, -129, 0, 23), UDim2.fromOffset(119, 10), 16, heavy))
-		local summary = if finished then ("%.2fs     +%d coins"):format(result.time, result.coins or 0) else ("%d%% of course"):format(math.floor((result.progress or 0) * 100))
+		local summary
+		if finished and result.completed ~= false and result.time then
+			summary = ("%.2fs     +%d coins"):format(result.time, result.coins or 0)
+		elseif champion then
+			summary = ("+%d coins"):format(result.coins or 0)
+		else
+			summary = ("%d%% of course"):format(math.floor((result.progress or 0) * 100))
+		end
 		left(label(card, summary, paper, UDim2.new(1, -129, 0, 22), UDim2.fromOffset(119, 35), 14, digits))
-		local detail = if finished then (result.record and "PERSONAL BEST" or ("SHELL %d / 3"):format(result.hp or 0)) else (result.reason or "Time expired")
-		left(label(card, detail, finished and lime or rust, UDim2.new(1, -125, 0, 21), UDim2.fromOffset(119, 63), 11, heavy))
+		local detail = if champion then result.reason or "TOURNAMENT WON"
+			elseif finished then result.record and "PERSONAL BEST" or ("SHELL %d / 3"):format(result.hp or 0)
+			else result.reason or "Time expired"
+		local reason = left(label(card, detail, highlight, UDim2.new(1, -125, 0, 25), UDim2.fromOffset(119, 61), 11, heavy))
+		reason.TextWrapped = true
+		reason.TextTruncate = Enum.TextTruncate.None
+	end
+	local advanced = result and result.advanced and not result.champion
+	if advanced then
+		advanceNote = row("", ink, 12, digits, 35)
 	end
 	for _, entry in state.scoreboard or {} do
-		if entry.time and entry.place then
-			row(("%02d  %s     %.2fs"):format(entry.place, entry.name, entry.time), muted, 12, digits, 24)
+		if entry.place then
+			local detail = entry.time and entry.completed ~= false and ("     %.2fs"):format(entry.time) or ""
+			row(("%02d  %s%s"):format(entry.place, entry.name, detail), muted, 12, digits, 24)
 		end
 	end
-	local actions = append(frame(list, nil, UDim2.new(1, -7, 0, 40)))
-	local replay = button(actions, "QUEUE AGAIN", yellow, ink, function() fire("next"); setTab(nil) end)
-	replay.Size = UDim2.new(0.54, -4, 1, 0)
-	local lobby = button(actions, "BACK TO HUB", cream, ink, function() fire("lobby"); setTab(nil) end)
-	lobby.Size = UDim2.new(0.46, -4, 1, 0)
-	lobby.Position = UDim2.new(0.54, 4, 0, 0)
+	if not advanced then
+		local actions = append(frame(list, nil, UDim2.new(1, -7, 0, 40)))
+		local replay = button(actions, "QUEUE AGAIN", yellow, ink, function() fire("next"); setTab(nil) end)
+		replay.Size = UDim2.new(0.54, -4, 1, 0)
+		local lobby = button(actions, "BACK TO HUB", cream, ink, function() fire("lobby"); setTab(nil) end)
+		lobby.Size = UDim2.new(0.46, -4, 1, 0)
+		lobby.Position = UDim2.new(0.54, 4, 0, 0)
+	end
 end
 
 local tabs = {
@@ -472,13 +678,18 @@ draw = function()
 		if child ~= layout then child:Destroy() end
 	end
 	rowOrder = 0
+	advanceNote = nil
+	lockerBalance = nil
+	auraToggle = nil
 	modal.Visible = tab ~= nil
-	dock.Visible = tab == nil and not state.racing
-	resultOpen.Visible = tab == nil and state.result ~= nil and state.racing == true and state.stage ~= "Returning"
+	dock.Visible = showDock()
+	resultOpen.Visible = tab == nil and hasResult()
 	if not tab then return end
 	local sheet = tabs[tab]
-	panelTitle.Text = sheet.title
-	panelStripe.BackgroundColor3 = sheet.color
+	panelTitle.Text = if tab == "Results" and state.tournament and state.heat then
+		if state.duel then "Final duel" else ("Heat %d results"):format(state.heat)
+		else sheet.title
+	panelStripe.BackgroundColor3 = tab == "Results" and state.result and state.result.champion and winnerRed or sheet.color
 	sheet.render()
 	task.defer(resizePanel)
 end
@@ -492,6 +703,17 @@ setTab = function(name)
 		GuiService.SelectedObject = if name then close elseif dock.Visible then play elseif state.result then resultOpen else nil
 	end
 end
+
+local function refreshAura()
+	if tab ~= "Stats" then return end
+	local scrolled = list.CanvasPosition
+	local toggled = auraToggle and GuiService.SelectedObject == auraToggle
+	draw()
+	list.CanvasPosition = scrolled
+	if toggled then GuiService.SelectedObject = auraToggle or close end
+end
+player:GetAttributeChangedSignal("WinnerAura"):Connect(refreshAura)
+player:GetAttributeChangedSignal("Wins"):Connect(refreshAura)
 
 local function confetti()
 	for index = 1, 19 do
@@ -530,20 +752,19 @@ remote.OnClientEvent:Connect(function(kind, value, extra)
 			Audio.play("Start")
 		end
 		Audio.setLobby(not state.racing)
-		if state.stage == "Returning" or (not state.racing and tab == "Results") then
+		if state.stage == "Returning" or (tab == "Results" and not hasResult()) or (state.room and state.stage == "Draft" and tab) then
 			setTab(nil)
-		elseif state.result and state.racing and (not before.result or (state.stage == "Results" and before.stage ~= "Results")) then
+		elseif hasResult() and (not before.result or before.result.champion ~= state.result.champion
+			or (state.stage == "Results" and before.stage ~= "Results")) then
 			setTab("Results")
 		elseif state.racing and not state.result and tab then
 			setTab(nil)
-		elseif state.stage == "Voting" and state.queued and before.stage ~= "Voting" then
-			setTab("Courses")
 		elseif tab == "Courses" or (tab == "Results" and state.stage == "Results") then
 			local position = list.CanvasPosition
 			draw()
 			list.CanvasPosition = position
 		else
-			dock.Visible = tab == nil and not state.racing
+			dock.Visible = showDock()
 		end
 	elseif kind == "Race" then
 		if value.zone and not race.zone and not state.practice and not state.solo then notice("CRACK ZONE · SHOVES LIVE") end
@@ -564,6 +785,9 @@ remote.OnClientEvent:Connect(function(kind, value, extra)
 	elseif kind == "Pass" then
 		local ok = pcall(MarketplaceService.PromptGamePassPurchase, MarketplaceService, player, value)
 		if not ok then notice("Purchase prompt unavailable") end
+	elseif kind == "Product" then
+		local ok = pcall(MarketplaceService.PromptProductPurchase, MarketplaceService, player, value)
+		if not ok then notice("Purchase prompt unavailable") end
 	elseif kind == "FX" then
 		Audio.play(value)
 		if value == "Crack" or value == "Break" then
@@ -577,43 +801,69 @@ remote.OnClientEvent:Connect(function(kind, value, extra)
 		elseif value == "Finish" then
 			confetti()
 			if extra.coins > 0 then Audio.play("Coins") end
-			if extra.place == 1 then Audio.play("Victory") end
+			if extra.champion then Audio.play("Victory") end
 		end
 	end
 end)
 
 local queueText = {
-	Lobby = "Waiting to start",
-	Intermission = "Heat starts in %s",
-	Voting = "Vote closes in %s",
-	Preparation = "Loading course",
-	Countdown = "Starting in %s",
-	Race = "Queued for the next heat",
-	Results = "Next heat after results",
-	Returning = "Waiting to start",
+	Lobby = "RACE QUEUE",
+	Intermission = "QUEUE CLOSES IN %s",
+	Draft = "NEXT TOURNAMENT",
+	Preparation = "NEXT TOURNAMENT",
+	Countdown = "NEXT TOURNAMENT",
+	Race = "NEXT TOURNAMENT",
+	Results = "NEXT TOURNAMENT",
+	Returning = "RACE QUEUE",
 }
 local function updateHud(current)
 	local racing = state.racing and not state.result and (state.stage == "Race" or state.stage == "Countdown" or state.stage == "Preparation")
-	local lobby = not state.racing
 	local leftSeconds = state.deadline - current
+	updateDraft(current)
+	local waiting = state.room == true and not racing and not draft.Visible and not modal.Visible
+	local announcement = not state.room and state.stage == "Results" and typeof(state.victor) == "string" and not modal.Visible
+	staging.Visible = waiting or announcement
+	if announcement then
+		stagingTitle.Text = "TOURNAMENT CHAMPION"
+		stagingBody.Text = state.victor
+	elseif waiting then
+		stagingTitle.Text = state.result and state.result.advanced and "QUALIFIED" or "TOURNAMENT"
+		stagingBody.Text = state.result and "CHECK YOUR RESULTS" or "WAITING FOR THE NEXT HEAT"
+	end
+	if advanceNote then
+		local nextHeat = heatName((state.heat or 1) + 1)
+		advanceNote.Text = if state.stage == "Results" then ("%s IN %s"):format(nextHeat, clock(leftSeconds)) else ("%s · WAITING FOR FINISH"):format(nextHeat)
+	end
+
 	hud.Visible = racing
-	wallet.Visible = lobby and not modal.Visible
-	coinCount.Text = tostring(player:GetAttribute("Coins") or 0)
+	wallet.Visible = not state.racing and not state.room and not modal.Visible
+	local balance = player:GetAttribute("Coins") or 0
+	coinCount.Text = tostring(balance)
+	if lockerBalance then lockerBalance.Text = ("%d COINS"):format(balance) end
 	local queued = state.queued or state.practiceQueued
-	play.Text = queued and "CANCEL" or "RACE"
-	queueStatus.Visible = queued == true and lobby and not modal.Visible
-	queueStatus.Text = (queueText[state.stage] or queueText.Lobby):format(clock(leftSeconds))
+	play.Text = queued and "CANCEL" or "QUEUE"
+	queueStatus.Visible = showDock()
+	local population = ("%02d / %02d"):format(state.queuedCount or 0, state.capacity or 15)
+	local queueState = (queueText[state.stage] or queueText.Lobby):format(clock(leftSeconds))
+	queueStatus.Text = state.practiceQueued and "PRACTICE QUEUED" or queueState .. "  ·  " .. population
 	practiceExit.Visible = racing and state.practice == true and not modal.Visible
-	resultOpen.Visible = state.result ~= nil and state.racing == true and not modal.Visible and state.stage ~= "Returning"
+	resultOpen.Visible = hasResult() and not modal.Visible
 	if racing then
 		courseName.Text = Levels[state.level].name
+		raceHeat.Text = if state.practice then "PRACTICE"
+			elseif state.solo then "TIME TRIAL"
+			elseif state.tournament then heatName(state.heat or 1)
+			else "KNOCKOUT"
 		raceTime.Text = clock(leftSeconds)
 		raceTime.TextColor3 = leftSeconds < 12 and state.stage == "Race" and rust or yellow
-		local slots = state.slots or 0
-		if state.practice then raceStatus.Text = "PRACTICE"
-		elseif state.solo then raceStatus.Text = "TIME TRIAL"
-		elseif slots > 0 then raceStatus.Text = ("#%d   /   %d OF %d IN"):format(race.place, state.qualified or 0, slots)
-		else raceStatus.Text = ("#%d   /   %d RACERS"):format(race.place, race.total) end
+		local slots = state.slots or race.slots or 0
+		local filled = math.max(state.qualified or 0, race.qualified or 0)
+		local percent = math.floor((race.progress or 0) * 100)
+		position.Text = (state.practice or state.solo) and ("%d%%"):format(percent) or ("#%02d"):format(race.place)
+		raceStatus.Text = if state.practice then "RESTARTS AT THE START"
+			elseif state.solo then ""
+			elseif slots > 0 then ("%02d/%02d FILLED  /  %d OPEN"):format(filled, slots, math.max(0, slots - filled))
+			else ("%d RACERS"):format(race.total)
 		progressFill.Size = UDim2.fromScale(math.clamp(race.progress or 0, 0, 1), 1)
 		for index, shell in ipairs(eggs) do
 			shell.BackgroundColor3 = if index > race.hp then charcoal elseif race.hp == 1 then rust else paper

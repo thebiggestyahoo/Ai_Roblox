@@ -2,6 +2,7 @@ local O = {}
 local palette = {Color3.fromHex("ff536c"), Color3.fromHex("ffb632"), Color3.fromHex("965bff")}
 local tileSafe = Color3.fromHex("9beecb")
 local tileWarning = Color3.fromHex("ff9160")
+local tileReturning = Color3.fromHex("bdf7e7")
 local pulseSafe = Color3.fromHex("2a3c50")
 local pulseWarning = Color3.fromHex("ffc34c")
 local pulseLive = Color3.fromHex("ff4f54")
@@ -57,6 +58,71 @@ local function hitsRacer(localPos, half, shape)
 		and math.abs(localPos.Z) < half.Z+0.85
 end
 
+local function buildRideable(course, item)
+	local platform, base, d = item.part, item.base, item.d
+	local guide = make(course.model,"Platform guide",Vector3.one,base,platform.Color,false)
+	guide.Transparency = 1
+	guide.CanQuery = false
+	guide.CastShadow = false
+
+	local slides = item.kind == "moving"
+	local axis = if slides then d.axis or Vector3.xAxis else Vector3.zAxis
+	local mount = CFrame.fromMatrix(Vector3.zero,axis,Vector3.yAxis)
+	local fixedAttachment = Instance.new("Attachment",guide)
+	fixedAttachment.CFrame = mount
+	local deckAttachment = Instance.new("Attachment",platform)
+	deckAttachment.CFrame = mount
+
+	local actuator = Instance.new(if slides then "PrismaticConstraint" else "HingeConstraint")
+	actuator.Name = "Platform drive"
+	actuator.Attachment0 = fixedAttachment
+	actuator.Attachment1 = deckAttachment
+	actuator.ActuatorType = Enum.ActuatorType.Servo
+	actuator.LimitsEnabled = true
+	local startingPosition = math.sin(item.phase)*d.range
+	if slides then
+		actuator.LowerLimit = -d.range-0.25
+		actuator.UpperLimit = d.range+0.25
+		actuator.LinearResponsiveness = 18
+		actuator.ServoMaxForce = 240000
+		actuator.Speed = d.speed*d.range+0.65
+		actuator.TargetPosition = startingPosition
+		platform.CFrame = base+axis*startingPosition
+	else
+		actuator.LowerAngle = -math.deg(d.range)-3
+		actuator.UpperAngle = math.deg(d.range)+3
+		actuator.AngularResponsiveness = 18
+		actuator.ServoMaxTorque = 900000
+		actuator.AngularSpeed = d.speed*d.range+0.35
+		actuator.TargetAngle = math.deg(startingPosition)
+		platform.CFrame = base*CFrame.Angles(0,0,startingPosition)
+	end
+	actuator.Parent = platform
+	platform.CustomPhysicalProperties = PhysicalProperties.new(1,0.9,0,80,100)
+	platform.Anchored = false
+	item.actuator = actuator
+end
+
+-- A returning floor can catch someone landing on top. Wait a full cycle
+-- instead if it would spawn around someone already falling through its space.
+local function overlapsFallingRacer(part, racers)
+	local half = part.Size * 0.5
+	for player, racer in racers do
+		if racer.finished or racer.out or racer.recovering then continue end
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not root then continue end
+		local position = part.CFrame:PointToObjectSpace(root.Position)
+		if math.abs(position.X) > half.X+0.8 or math.abs(position.Z) > half.Z+0.8 then continue end
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local standingHeight = humanoid and humanoid.HipHeight+root.Size.Y/2 or 3
+		if position.Y > -half.Y-2.8 and position.Y < half.Y+standingHeight-0.15 then
+			return true
+		end
+	end
+	return false
+end
+
 function O.add(course, kind, origin, phase, overrides)
 	local d = table.clone(assert(definitions[kind], kind))
 	for key, value in overrides or {} do d[key] = value end
@@ -64,6 +130,7 @@ function O.add(course, kind, origin, phase, overrides)
 	local p = make(course.model, kind, d.size, cf, d.color or palette[math.floor(phase) % 3 + 1], d.solid == true, d.shape)
 	if not d.solid then p.CanQuery = false end
 	local item = {kind = kind, part = p, base = cf, phase = phase, d = d}
+	if kind == "moving" or kind == "tilt" then buildRideable(course,item) end
 	if kind == "ice" then p.CustomPhysicalProperties = PhysicalProperties.new(1, 0.015, 0) end
 	if kind == "conveyor" then p.AssemblyLinearVelocity = Vector3.new(0, 0, d.speed) end
 	if kind == "gravity" then p.Transparency = 0.8 end
@@ -77,6 +144,15 @@ function O.add(course, kind, origin, phase, overrides)
 	return item
 end
 
+function O.activate(course)
+	for _, item in course.obstacles do
+		if item.actuator and item.part:CanSetNetworkOwnership() then
+			-- The deck's contacts and travel stay on the server even with multiple riders.
+			item.part:SetNetworkOwner(nil)
+		end
+	end
+end
+
 function O.update(course, age, racers, damage)
 	if course.gravityApplied then
 		for root in course.gravityApplied do
@@ -86,14 +162,17 @@ function O.update(course, age, racers, damage)
 	end
 	for _, o in course.obstacles do
 		local p, d, kind = o.part, o.d, o.kind
-		local old = p.CFrame
 		local t = age * (d.speed or 1) + o.phase
 		local s = math.sin(t)
+		if o.actuator then
+			if kind == "moving" then o.actuator.TargetPosition = s*d.range
+			else o.actuator.TargetAngle = math.deg(s*d.range) end
+			continue
+		end
 		local active = true
 		if kind == "sweep" then p.CFrame = o.base * CFrame.Angles(0, t, 0)
 		elseif kind == "ball" then p.CFrame = o.base + Vector3.new(s * d.range, math.abs(math.sin(t * 1.6)) * 5.6, 0)
-		elseif kind == "foam" or kind == "moving" then p.CFrame = o.base + (d.axis or Vector3.xAxis) * (s * d.range)
-		elseif kind == "tilt" then p.CFrame = o.base * CFrame.Angles((d.pitch or 0) * math.cos(t), 0, s * d.range)
+		elseif kind == "foam" then p.CFrame = o.base + (d.axis or Vector3.xAxis) * (s * d.range)
 		elseif kind == "roller" then p.CFrame = (o.base + Vector3.new(s * d.range, 0, 0)) * CFrame.Angles(t, 0, 0)
 		elseif kind == "snowball" then p.CFrame = o.base + Vector3.new(0, 0, s * d.range)
 		elseif kind == "pendulum" then
@@ -104,13 +183,21 @@ function O.update(course, age, racers, damage)
 		elseif kind == "vanish" or kind == "collapse" then
 			local cycle = (age + o.phase) % d.period
 			local solid = cycle < d.period - d.open
-			local warning = cycle > d.period - d.open - 0.75
-			local mode = if not solid then "out" elseif warning then "warning" else "solid"
+			if solid and not p.CanCollide and age >= (o.blockedUntil or 0) and overlapsFallingRacer(p,racers) then
+				o.blockedUntil = age+d.period-cycle
+			end
+			local blocked = age < (o.blockedUntil or 0)
+			local mode
+			if cycle >= d.period-0.48 then mode = "returning"
+			elseif blocked then mode = "out"
+			elseif not solid then mode = "out"
+			elseif cycle > d.period-d.open-0.75 then mode = "warning"
+			else mode = "solid" end
 			if o.mode ~= mode then
 				o.mode = mode
-				p.CanCollide = solid
-				p.Transparency = if not solid then 0.85 elseif warning then 0.22 else 0
-				p.Color = if warning then tileWarning else d.color or tileSafe
+				p.CanCollide = mode == "solid" or mode == "warning"
+				p.Transparency = if mode == "out" then 0.85 elseif mode == "returning" then 0.58 elseif mode == "warning" then 0.22 else 0
+				p.Color = if mode == "warning" then tileWarning elseif mode == "returning" then tileReturning else d.color or tileSafe
 			end
 		elseif kind == "pulse" then
 			local cycle = (age + o.phase) % d.period
@@ -131,7 +218,7 @@ function O.update(course, age, racers, damage)
 		elseif kind == "door" then p.CFrame = o.base + Vector3.new(0, (s + 1) * d.range / 2, 0)
 		end
 		if not active then continue end
-		if not d.damage and old == p.CFrame and kind ~= "launch" and kind ~= "gravity" then continue end
+		if not d.damage and kind ~= "launch" and kind ~= "gravity" then continue end
 		for player, racer in racers do
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			if not root or root.Anchored or racer.finished or racer.out or racer.recovering then continue end
@@ -142,12 +229,6 @@ function O.update(course, age, racers, damage)
 			if d.damage then
 				if hitsRacer(localPos,half,d.shape) then
 					damage(player, racer, d.damage, p)
-				end
-			elseif kind == "moving" or kind == "tilt" then
-				local previous = old:PointToObjectSpace(root.Position)
-				if math.abs(previous.X) <= half.X and math.abs(previous.Z) <= half.Z and previous.Y > half.Y + 1.4 and previous.Y < half.Y + 3.8 and root.AssemblyLinearVelocity.Y < 5 then
-					local carried = p.CFrame:PointToWorldSpace(previous)
-					root.CFrame += carried-root.Position
 				end
 			elseif math.abs(localPos.X) <= half.X and math.abs(localPos.Z) <= half.Z then
 				if kind == "launch" and localPos.Y > 0 and localPos.Y < 3.4 and root.AssemblyLinearVelocity.Y <= 1 then

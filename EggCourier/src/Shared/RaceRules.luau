@@ -9,9 +9,26 @@ function Rules.crossing(previous, current, line, center, width, minY, maxY)
 	return nil
 end
 
-function Rules.slots(entrants)
-	if entrants <= 1 then return entrants end
-	return math.min(entrants - 1, math.ceil(entrants * 0.6))
+local cuts = {12, 9, 6, 3, 2}
+Rules.heatCount = #cuts
+
+function Rules.slots(starting, heat, remaining)
+	local cut = cuts[heat]
+	if not cut then return 1 end
+	return math.min(remaining, math.max(2, math.ceil(starting * cut / 15)))
+end
+
+function Rules.drawMaps(random)
+	local opening = random:NextInteger(1,2)
+	-- The catalog is ordered by difficulty. Draw three distinct middle courses.
+	local middle = {3,4,5,6,7}
+	for i=1,3 do
+		local j = random:NextInteger(i,#middle)
+		middle[i], middle[j] = middle[j], middle[i]
+	end
+	local chosen = {middle[1],middle[2],middle[3]}
+	table.sort(chosen)
+	return {opening,chosen[1],chosen[2],chosen[3],random:NextInteger(8,9)}
 end
 
 function Rules.recordKey(level)
