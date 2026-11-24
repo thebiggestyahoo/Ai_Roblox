@@ -21,7 +21,63 @@
     },
     "Workspace": {
       "$properties": {
-        "StreamingEnabled": false
+        "StreamingEnabled": false,
+        "FallenPartsDestroyHeight": -55
+      },
+      "CourierLobby": {
+        "$className": "Folder",
+        "Stage floor": {
+          "$className": "Part",
+          "$properties": {
+            "Anchored": true,
+            "Size": [91, 1.5, 74],
+            "CFrame": [
+              0,
+              -0.75,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1
+            ],
+            "Color": [0.29411764705882354, 0.5176470588235295, 0.8745098039215686],
+            "CanTouch": false,
+            "CanCollide": true,
+            "TopSurface": "Smooth",
+            "BottomSurface": "Smooth"
+          }
+        },
+        "CourierSpawn": {
+          "$className": "SpawnLocation",
+          "$properties": {
+            "Anchored": true,
+            "Neutral": true,
+            "Duration": 0,
+            "Size": [12, 0.25, 8],
+            "CFrame": [
+              0,
+              0.14,
+              -22,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1
+            ],
+            "Color": [0.21176470588235294, 0.8392156862745098, 0.9254901960784314],
+            "CanCollide": true,
+            "Enabled": true
+          }
+        }
       }
     }
   }

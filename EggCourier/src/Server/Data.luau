@@ -1,9 +1,15 @@
-local Store = game:GetService("DataStoreService"):GetDataStore("CourierProfiles_v1")
+local DataStoreService = game:GetService("DataStoreService")
 local RunService = game:GetService("RunService")
 local Http = game:GetService("HttpService")
 local Rules = require(game:GetService("ReplicatedStorage"):WaitForChild("EggShared").RaceRules)
 local token = Http:GenerateGUID(false)
 local D = {sessions = {}}
+local store
+
+local function getStore()
+	if not store then store = DataStoreService:GetDataStore("CourierProfiles_v1") end
+	return store
+end
 
 local function normalize(raw)
 	local data = typeof(raw) == "table" and raw or {}
@@ -38,8 +44,13 @@ local function key(player)
 end
 
 function D.load(player)
+	if RunService:IsStudio() and game.GameId == 0 then
+		local data = normalize(nil)
+		D.sessions[player] = {data=data, temporary=true}
+		return data
+	end
 	local ok, result = retry(function()
-		return Store:UpdateAsync(key(player), function(old)
+		return getStore():UpdateAsync(key(player), function(old)
 			local envelope = typeof(old) == "table" and old or {}
 			if envelope.owner and envelope.owner ~= token and (envelope.expires or 0) > os.time() then return nil end
 			return {owner=token, expires=os.time()+180, data=normalize(envelope.data or (not envelope.owner and old))}
@@ -76,7 +87,7 @@ function D.save(player, release)
 	local snapshot = table.clone(session.data)
 	for _, field in {"skins","trails","records"} do snapshot[field] = table.clone(snapshot[field]) end
 	local ok, result = retry(function()
-		return Store:UpdateAsync(key(player), function(old)
+		return getStore():UpdateAsync(key(player), function(old)
 			if typeof(old) ~= "table" or old.owner ~= token then return nil end
 			if release then return {data=snapshot} end
 			return {owner=token, expires=os.time()+180, data=snapshot}

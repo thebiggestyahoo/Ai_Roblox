@@ -72,10 +72,16 @@ function W.lobby(action)
 	air.Density = 0.23
 	air.Haze = 0.65
 	air.Color = rgb("d0e7ff")
-	local m = Instance.new("Folder", workspace)
-	m.Name = "CourierLobby"
+	local m = workspace:FindFirstChild("CourierLobby")
+	if not m then
+		m = Instance.new("Folder")
+		m.Name = "CourierLobby"
+		m.Parent = workspace
+	end
 	box(m,"Grass island",0,-3,0,125,5,112,green,true)
-	box(m,"Stage floor",0,-0.75,0,91,1.5,74,rgb("4b84df"),true)
+	if not m:FindFirstChild("Stage floor") then
+		box(m,"Stage floor",0,-0.75,0,91,1.5,74,rgb("4b84df"),true)
+	end
 	for x = -42,42,7 do box(m,"Inlaid tile",x,0.02,0,0.08,0.035,74,rgb("669cec")) end
 	for z = -35,35,7 do box(m,"Inlaid tile",0,0.02,z,91,0.035,0.08,rgb("669cec")) end
 	box(m,"Golden plinth",0,0.9,9,15,1.8,12,ink,true)
@@ -86,15 +92,18 @@ function W.lobby(action)
 	local marquee = arch(m,0,16,35,"DON’T CRACK THE EGG!",yellow)
 	for i = -7,7 do box(m,"Marquee bulb",i*2.35,8.7,14.95,0.35,0.35,0.18,i%2==0 and pink or yellow) end
 	billboard(marquee,"GREEN MEADOWS  /  COURIER ARENA",27,1.7,Vector3.new(0,-2,0),aqua)
-	local spawn = Instance.new("SpawnLocation")
-	spawn.Name = "CourierSpawn"
-	spawn.Size = Vector3.new(12,0.25,8)
-	spawn.Position = Vector3.new(0,0.14,-22)
-	spawn.Color = aqua
-	spawn.Neutral = true
-	spawn.Duration = 0
-	spawn.Anchored = true
-	spawn.Parent = m
+	local spawn = m:FindFirstChild("CourierSpawn")
+	if not spawn then
+		spawn = Instance.new("SpawnLocation")
+		spawn.Name = "CourierSpawn"
+		spawn.Size = Vector3.new(12,0.25,8)
+		spawn.Position = Vector3.new(0,0.14,-22)
+		spawn.Color = aqua
+		spawn.Neutral = true
+		spawn.Duration = 0
+		spawn.Anchored = true
+		spawn.Parent = m
+	end
 	local function portal(x,z,text,key,color)
 		arch(m,x,z,11,text,color)
 		local pad = box(m,text,x,0.3,z,12,0.6,8,color,true)
@@ -134,7 +143,7 @@ function W.lobby(action)
 		podium[i] = billboard(sign,tostring(i),6,1.4,Vector3.new(0,1.8,0),yellow)
 	end
 	for _, x in {-54,54} do scenery(m,x,0,100+x) end
-	return Vector3.new(0,3.7,-22), practice, text, podium
+	return spawn.Position + Vector3.new(0,3.56,0), practice, text, podium
 end
 
 function W.course(level, x, z)

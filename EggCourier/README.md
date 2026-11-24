@@ -4,7 +4,7 @@ A Roblox obstacle racing game with standard player avatars, a three-hit egg, and
 
 ## Open and play in Studio
 
-1. Open `DontCrackTheEgg.rbxlx` with Roblox Studio on Windows or macOS. The place already contains the ModuleScripts, server Script, and LocalScript. Rojo is optional.
+1. Open `DontCrackTheEgg.rbxlx` with Roblox Studio on Windows or macOS. The place already contains the lobby floor, spawn pad, ModuleScripts, server Script, and LocalScript. The rest of the lobby appears when you press **Play**. Rojo is optional.
 2. Open **View → Output** and press **Play**. Click **Play** in the HUD or use the **Race Queue** pad. The queue runs a 15-second intermission, eight seconds of voting, and a three-second starting countdown.
 3. Run toward **Deliver Here** and cross each checkpoint in order. A broken egg costs 2.5 seconds before checkpoint recovery. Finish with an intact egg to earn coins and unlock the next course.
 4. In **Courses**, select an unlocked course. Use **Practice selected course** for a solo run without rewards. Practice uses the same race arena and starts when no multiplayer race is queued or underway. **Play** with one racer starts a time trial that grants progression, coins, and personal records. Placement bonuses and wins require at least two starters.
@@ -24,7 +24,7 @@ The source workflow uses Rojo 7. Build with `rojo build -o DontCrackTheEgg.rbxlx
 ## Required configuration
 
 - The bundled place uses standard avatars and disables streaming. In Creator Dashboard, set server capacity to **12** and use **R15** for the experience. The server also caps each race at 12 starters.
-- For persistence testing, create a **private test experience**, save the place there, and enable **Studio Access to API Services** in the test experience. Play, earn coins, stop, and rejoin to confirm totals, records, and loadout. Keep test DataStore data separate from production.
+- Local Studio playtests of the downloaded place use temporary profiles. For persistence testing, create a **private test experience**, save the place there, and enable **Studio Access to API Services** in the test experience. Play, earn coins, stop, and rejoin to confirm totals, records, and loadout. Keep test DataStore data separate from production.
 - Set permitted sound asset IDs for the experience in `src/Shared/Config.luau` under `audio`. Entries at `0` are silent. Confirm playback and music/effects settings in both Studio and the private client.
 - To configure premium cosmetics after approval, create each game pass in the target experience and copy its pass ID into `Config.passes`. The suggested prices are Golden 49, Rainbow 79, Galaxy 99, Royal 149, and VIP 199 Robux. Set the actual prices in Roblox. The shop directs players to Roblox’s price confirmation, and the server verifies pass ownership and handles purchase completion. VIP grants an egg, name tag, and trail. Leave each ID at `0` to disable that offer. Permanent cosmetics use passes. Developer products and receipt processing are outside this build.
 

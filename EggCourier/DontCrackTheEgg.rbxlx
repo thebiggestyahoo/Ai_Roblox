@@ -200,12 +200,18 @@ return Rules
       <Item class="ModuleScript" referent="8">
         <Properties>
           <string name="Name">Data</string>
-          <string name="Source"><![CDATA[local Store = game:GetService("DataStoreService"):GetDataStore("CourierProfiles_v1")
+          <string name="Source"><![CDATA[local DataStoreService = game:GetService("DataStoreService")
 local RunService = game:GetService("RunService")
 local Http = game:GetService("HttpService")
 local Rules = require(game:GetService("ReplicatedStorage"):WaitForChild("EggShared").RaceRules)
 local token = Http:GenerateGUID(false)
 local D = {sessions = {}}
+local store
+
+local function getStore()
+	if not store then store = DataStoreService:GetDataStore("CourierProfiles_v1") end
+	return store
+end
 
 local function normalize(raw)
 	local data = typeof(raw) == "table" and raw or {}
@@ -240,8 +246,13 @@ local function key(player)
 end
 
 function D.load(player)
+	if RunService:IsStudio() and game.GameId == 0 then
+		local data = normalize(nil)
+		D.sessions[player] = {data=data, temporary=true}
+		return data
+	end
 	local ok, result = retry(function()
-		return Store:UpdateAsync(key(player), function(old)
+		return getStore():UpdateAsync(key(player), function(old)
 			local envelope = typeof(old) == "table" and old or {}
 			if envelope.owner and envelope.owner ~= token and (envelope.expires or 0) > os.time() then return nil end
 			return {owner=token, expires=os.time()+180, data=normalize(envelope.data or (not envelope.owner and old))}
@@ -278,7 +289,7 @@ function D.save(player, release)
 	local snapshot = table.clone(session.data)
 	for _, field in {"skins","trails","records"} do snapshot[field] = table.clone(snapshot[field]) end
 	local ok, result = retry(function()
-		return Store:UpdateAsync(key(player), function(old)
+		return getStore():UpdateAsync(key(player), function(old)
 			if typeof(old) ~= "table" or old.owner ~= token then return nil end
 			if release then return {data=snapshot} end
 			return {owner=token, expires=os.time()+180, data=snapshot}
@@ -440,10 +451,6 @@ local lobby, demo, leaderboard, podium
 
 pcall(function() Physics:RegisterCollisionGroup("Couriers") end)
 Physics:CollisionGroupSetCollidable("Couriers","Couriers",false)
-workspace.FallenPartsDestroyHeight = -55
-for _, instance in workspace:GetChildren() do
-	if instance.Name == "Baseplate" and instance:IsA("BasePart") then instance:Destroy() end
-end
 
 local function send(player, kind, value, extra)
 	if player.Parent == Players then remote:FireClient(player,kind,value,extra) end
@@ -625,6 +632,9 @@ local function action(player, key, id)
 end
 
 lobby,demo,leaderboard,podium = World.lobby(action)
+for _, instance in workspace:GetChildren() do
+	if instance.Name == "Baseplate" and instance:IsA("BasePart") then instance:Destroy() end
+end
 
 remote.OnServerEvent:Connect(function(player,key,id)
 	if typeof(key) ~= "string" or #key > 12 or (id ~= nil and (typeof(id) ~= "string" or #id > 32)) then return end
@@ -1246,10 +1256,16 @@ function W.lobby(action)
 	air.Density = 0.23
 	air.Haze = 0.65
 	air.Color = rgb("d0e7ff")
-	local m = Instance.new("Folder", workspace)
-	m.Name = "CourierLobby"
+	local m = workspace:FindFirstChild("CourierLobby")
+	if not m then
+		m = Instance.new("Folder")
+		m.Name = "CourierLobby"
+		m.Parent = workspace
+	end
 	box(m,"Grass island",0,-3,0,125,5,112,green,true)
-	box(m,"Stage floor",0,-0.75,0,91,1.5,74,rgb("4b84df"),true)
+	if not m:FindFirstChild("Stage floor") then
+		box(m,"Stage floor",0,-0.75,0,91,1.5,74,rgb("4b84df"),true)
+	end
 	for x = -42,42,7 do box(m,"Inlaid tile",x,0.02,0,0.08,0.035,74,rgb("669cec")) end
 	for z = -35,35,7 do box(m,"Inlaid tile",0,0.02,z,91,0.035,0.08,rgb("669cec")) end
 	box(m,"Golden plinth",0,0.9,9,15,1.8,12,ink,true)
@@ -1260,15 +1276,18 @@ function W.lobby(action)
 	local marquee = arch(m,0,16,35,"DON’T CRACK THE EGG!",yellow)
 	for i = -7,7 do box(m,"Marquee bulb",i*2.35,8.7,14.95,0.35,0.35,0.18,i%2==0 and pink or yellow) end
 	billboard(marquee,"GREEN MEADOWS  /  COURIER ARENA",27,1.7,Vector3.new(0,-2,0),aqua)
-	local spawn = Instance.new("SpawnLocation")
-	spawn.Name = "CourierSpawn"
-	spawn.Size = Vector3.new(12,0.25,8)
-	spawn.Position = Vector3.new(0,0.14,-22)
-	spawn.Color = aqua
-	spawn.Neutral = true
-	spawn.Duration = 0
-	spawn.Anchored = true
-	spawn.Parent = m
+	local spawn = m:FindFirstChild("CourierSpawn")
+	if not spawn then
+		spawn = Instance.new("SpawnLocation")
+		spawn.Name = "CourierSpawn"
+		spawn.Size = Vector3.new(12,0.25,8)
+		spawn.Position = Vector3.new(0,0.14,-22)
+		spawn.Color = aqua
+		spawn.Neutral = true
+		spawn.Duration = 0
+		spawn.Anchored = true
+		spawn.Parent = m
+	end
 	local function portal(x,z,text,key,color)
 		arch(m,x,z,11,text,color)
 		local pad = box(m,text,x,0.3,z,12,0.6,8,color,true)
@@ -1308,7 +1327,7 @@ function W.lobby(action)
 		podium[i] = billboard(sign,tostring(i),6,1.4,Vector3.new(0,1.8,0),yellow)
 	end
 	for _, x in {-54,54} do scenery(m,x,0,100+x) end
-	return Vector3.new(0,3.7,-22), practice, text, podium
+	return spawn.Position + Vector3.new(0,3.56,0), practice, text, podium
 end
 
 function W.course(level, x, z)
@@ -1884,8 +1903,74 @@ fire("hello")
   <Item class="Workspace" referent="19">
     <Properties>
       <string name="Name">Workspace</string>
+      <float name="FallenPartsDestroyHeight">-55</float>
       <bool name="NeedsPivotMigration">false</bool>
       <bool name="StreamingEnabled">false</bool>
     </Properties>
+    <Item class="Folder" referent="20">
+      <Properties>
+        <string name="Name">CourierLobby</string>
+      </Properties>
+      <Item class="SpawnLocation" referent="21">
+        <Properties>
+          <string name="Name">CourierSpawn</string>
+          <bool name="Anchored">true</bool>
+          <CoordinateFrame name="CFrame">
+            <X>0</X>
+            <Y>0.14</Y>
+            <Z>-22</Z>
+            <R00>1</R00>
+            <R01>0</R01>
+            <R02>0</R02>
+            <R10>0</R10>
+            <R11>1</R11>
+            <R12>0</R12>
+            <R20>0</R20>
+            <R21>0</R21>
+            <R22>1</R22>
+          </CoordinateFrame>
+          <bool name="CanCollide">true</bool>
+          <Color3uint8 name="Color3uint8">3593964</Color3uint8>
+          <int name="Duration">0</int>
+          <bool name="Enabled">true</bool>
+          <bool name="Neutral">true</bool>
+          <Vector3 name="size">
+            <X>12</X>
+            <Y>0.25</Y>
+            <Z>8</Z>
+          </Vector3>
+        </Properties>
+      </Item>
+      <Item class="Part" referent="22">
+        <Properties>
+          <string name="Name">Stage floor</string>
+          <bool name="Anchored">true</bool>
+          <token name="BottomSurface">0</token>
+          <CoordinateFrame name="CFrame">
+            <X>0</X>
+            <Y>-0.75</Y>
+            <Z>0</Z>
+            <R00>1</R00>
+            <R01>0</R01>
+            <R02>0</R02>
+            <R10>0</R10>
+            <R11>1</R11>
+            <R12>0</R12>
+            <R20>0</R20>
+            <R21>0</R21>
+            <R22>1</R22>
+          </CoordinateFrame>
+          <bool name="CanCollide">true</bool>
+          <bool name="CanTouch">false</bool>
+          <Color3uint8 name="Color3uint8">4949215</Color3uint8>
+          <Vector3 name="size">
+            <X>91</X>
+            <Y>1.5</Y>
+            <Z>74</Z>
+          </Vector3>
+          <token name="TopSurface">0</token>
+        </Properties>
+      </Item>
+    </Item>
   </Item>
 </roblox>

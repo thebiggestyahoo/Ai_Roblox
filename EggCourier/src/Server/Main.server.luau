@@ -29,10 +29,6 @@ local lobby, demo, leaderboard, podium
 
 pcall(function() Physics:RegisterCollisionGroup("Couriers") end)
 Physics:CollisionGroupSetCollidable("Couriers","Couriers",false)
-workspace.FallenPartsDestroyHeight = -55
-for _, instance in workspace:GetChildren() do
-	if instance.Name == "Baseplate" and instance:IsA("BasePart") then instance:Destroy() end
-end
 
 local function send(player, kind, value, extra)
 	if player.Parent == Players then remote:FireClient(player,kind,value,extra) end
@@ -214,6 +210,9 @@ local function action(player, key, id)
 end
 
 lobby,demo,leaderboard,podium = World.lobby(action)
+for _, instance in workspace:GetChildren() do
+	if instance.Name == "Baseplate" and instance:IsA("BasePart") then instance:Destroy() end
+end
 
 remote.OnServerEvent:Connect(function(player,key,id)
 	if typeof(key) ~= "string" or #key > 12 or (id ~= nil and (typeof(id) ~= "string" or #id > 32)) then return end
