@@ -68,11 +68,18 @@ expect(Rules.complete(courier,5,55,true,1,false),75)
 expect(courier.records[Rules.recordKey(5)],55)
 expect(courier.coins,1175)
 expect(#Levels,9)
-local islands = {}
+local islands, openings = {}, {}
 for _, level in ipairs(Levels) do
 	assert(level.time >= 60 and level.time <= 120)
-	assert(#level.sections >= 6)
-	assert(#level.island > 0 and #level.rating > 0)
+	assert(#level.sections >= 4)
+	assert(not openings[level.sections[1]])
+	openings[level.sections[1]] = true
+	local crackZones = 0
+	for _, section in level.sections do
+		if section == "duel" then crackZones += 1 end
+	end
+	expect(crackZones,1)
+	assert(#level.island > 0 and #level.rating > 0 and #level.hook > 0)
 	islands[level.island] = true
 end
 local islandCount = 0

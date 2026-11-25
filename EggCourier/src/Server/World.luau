@@ -45,7 +45,7 @@ local function sign(parent, name, position, size, caption, fill, ink, font, face
 	label.BackgroundTransparency = 1
 	label.Position = UDim2.fromScale(0.055,0.10)
 	label.Size = UDim2.fromScale(0.89,0.8)
-	label.Font = font or Enum.Font.Oswald
+	label.Font = font or Enum.Font.FredokaOne
 	label.Text = caption
 	label.TextColor3 = ink
 	label.TextScaled = true

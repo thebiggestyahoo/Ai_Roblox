@@ -46,16 +46,16 @@ local definitions = {
 }
 O.definitions = definitions
 
-local function hitsRacer(localPos, half, shape)
+local function hitsRacer(localPos, half, shape, bodyHalf)
 	if shape == Enum.PartType.Ball then
-		local x = math.max(0,math.abs(localPos.X)-0.74)
-		local y = math.max(0,math.abs(localPos.Y)-1.65)
-		local z = math.max(0,math.abs(localPos.Z)-0.74)
+		local x = math.max(0,math.abs(localPos.X)-0.55)
+		local y = math.max(0,math.abs(localPos.Y)-bodyHalf)
+		local z = math.max(0,math.abs(localPos.Z)-0.55)
 		return x*x+y*y+z*z < half.X*half.X
 	end
-	return math.abs(localPos.X) < half.X+0.85
-		and math.abs(localPos.Y) < half.Y+1.75
-		and math.abs(localPos.Z) < half.Z+0.85
+	return math.abs(localPos.X) < half.X+0.55
+		and math.abs(localPos.Y) < half.Y+bodyHalf
+		and math.abs(localPos.Z) < half.Z+0.55
 end
 
 local function buildRideable(course, item)
@@ -135,7 +135,15 @@ function O.add(course, kind, origin, phase, overrides)
 	if kind == "conveyor" then p.AssemblyLinearVelocity = Vector3.new(0, 0, d.speed) end
 	if kind == "gravity" then p.Transparency = 0.8 end
 	if kind == "pulse" then p.Material = Enum.Material.Neon end
-	if kind == "boulder" then p.Material = Enum.Material.Slate end
+	if kind == "boulder" then
+		p.Material = Enum.Material.Slate
+		local start = cf.Position + Vector3.zAxis*d.range
+		local warning = make(course.model,"Boulder warning",Vector3.new(3,0.08,1.2),
+			CFrame.new(start.X,origin.Y+0.05,start.Z),pulseWarning,false)
+		warning.Material = Enum.Material.Neon
+		warning.CanQuery = false
+		item.warning = warning
+	end
 	if kind == "pendulum" then
 		item.pivot = origin + Vector3.new(0, 16, 0)
 		item.arm = make(course.model, "Foam swing arm", Vector3.one, cf, Color3.fromHex("ffe6a2"), false)
@@ -171,7 +179,7 @@ function O.update(course, age, racers, damage)
 		end
 		local active = true
 		if kind == "sweep" then p.CFrame = o.base * CFrame.Angles(0, t, 0)
-		elseif kind == "ball" then p.CFrame = o.base + Vector3.new(s * d.range, math.abs(math.sin(t * 1.6)) * 5.6, 0)
+		elseif kind == "ball" then p.CFrame = o.base + Vector3.new(s * d.range, math.abs(math.sin(t * 1.6)) * (d.bounce or 5.6), 0)
 		elseif kind == "foam" then p.CFrame = o.base + (d.axis or Vector3.xAxis) * (s * d.range)
 		elseif kind == "roller" then p.CFrame = (o.base + Vector3.new(s * d.range, 0, 0)) * CFrame.Angles(t, 0, 0)
 		elseif kind == "snowball" then p.CFrame = o.base + Vector3.new(0, 0, s * d.range)
@@ -202,7 +210,7 @@ function O.update(course, age, racers, damage)
 		elseif kind == "pulse" then
 			local cycle = (age + o.phase) % d.period
 			active = cycle >= d.period - d.open
-			local mode = if active then "live" elseif cycle >= d.period-d.open-0.72 then "warning" else "safe"
+			local mode = if active then "live" elseif cycle >= d.period-d.open-0.95 then "warning" else "safe"
 			if o.mode ~= mode then
 				o.mode = mode
 				p.Color = if mode == "live" then pulseLive elseif mode == "warning" then pulseWarning else d.color or pulseSafe
@@ -214,7 +222,9 @@ function O.update(course, age, racers, damage)
 			active = cycle < d.travel
 			local position = active and (1-traveled*2)*d.range or d.range
 			p.CFrame = (o.base + Vector3.zAxis*position) * CFrame.Angles(-traveled*8.2,0,0)
-			p.Transparency = if active then 0 elseif cycle >= d.period-0.95 then 0.22 else 1
+			local warning = not active and cycle >= d.period-1.15
+			p.Transparency = if active then 0 elseif warning then 0.65 else 1
+			o.warning.Transparency = if warning then 0 else 1
 		elseif kind == "door" then p.CFrame = o.base + Vector3.new(0, (s + 1) * d.range / 2, 0)
 		end
 		if not active then continue end
@@ -222,14 +232,25 @@ function O.update(course, age, racers, damage)
 		for player, racer in racers do
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			if not root or root.Anchored or racer.finished or racer.out or racer.recovering then continue end
-			local probeOffset = if kind == "pulse" then 2.1 elseif kind == "sweep" or kind == "roller" then 1 else 0
-			local probe = root.Position-Vector3.yAxis * probeOffset
-			local localPos = p.CFrame:PointToObjectSpace(probe)
+			local localPos = p.CFrame:PointToObjectSpace(root.Position)
 			local half = p.Size * 0.5
 			if d.damage then
-				if hitsRacer(localPos,half,d.shape) then
-					damage(player, racer, d.damage, p)
+				local hit
+				if kind == "pulse" or kind == "sweep" or kind == "roller" then
+					local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+					local standHeight = root.Size.Y*0.5 + (humanoid and humanoid.HipHeight or 0)
+					if humanoid and humanoid.RigType == Enum.HumanoidRigType.R6 then
+						local leg = player.Character:FindFirstChild("Left Leg")
+						standHeight += leg and leg.Size.Y or 2
+					end
+					local feet = root.Position.Y-standHeight
+					hit = feet < p.Position.Y + (kind == "roller" and half.Z or half.Y) + 0.18
+						and math.abs(localPos.X) < half.X + 0.5
+						and math.abs(kind == "roller" and (root.Position.Z-p.Position.Z) or localPos.Z) < half.Z + 0.46
+				else
+					hit = hitsRacer(localPos,half,d.shape,math.max(0.9,root.Size.Y*0.67))
 				end
+				if hit then damage(player, racer, d.damage, p) end
 			elseif math.abs(localPos.X) <= half.X and math.abs(localPos.Z) <= half.Z then
 				if kind == "launch" and localPos.Y > 0 and localPos.Y < 3.4 and root.AssemblyLinearVelocity.Y <= 1 then
 					root.AssemblyLinearVelocity += Vector3.new(0, d.speed, 0)

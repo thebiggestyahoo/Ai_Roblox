@@ -32,7 +32,7 @@ function Rules.drawMaps(random)
 end
 
 function Rules.recordKey(level)
-	return "knockout:" .. level
+	return "knockout:remix:" .. level
 end
 
 function Rules.complete(data, level, time, perfect, place, competitive)

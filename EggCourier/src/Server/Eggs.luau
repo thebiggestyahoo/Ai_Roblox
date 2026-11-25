@@ -2,6 +2,15 @@ local Debris = game:GetService("Debris")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("EggShared")
 local EggModel = require(Shared.EggModel)
 local Eggs = {}
+local activePoses = setmetatable({}, {__mode = "k"})
+
+local function releasePose(egg)
+	local release = activePoses[egg]
+	if release then
+		activePoses[egg] = nil
+		release()
+	end
+end
 
 local championRed = Color3.fromHex("ff334b")
 
@@ -57,53 +66,64 @@ function Eggs.aura(player, data)
 	trail.Parent = root
 end
 
-local function poseArms(character, egg)
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	local torso = character:FindFirstChild("UpperTorso")
-	if not humanoid or humanoid.RigType ~= Enum.HumanoidRigType.R15 or not torso then return end
-
+local function poseArms(character, humanoid, torso, egg, offset)
 	local shell = egg.PrimaryPart
-	local poseObjects = {}
+	local poseObjects, shoulders = {}, {}
+	local r15 = humanoid.RigType == Enum.HumanoidRigType.R15
 	for side, direction in {Left=-1, Right=1} do
-		local arm = character:FindFirstChild(side .. "UpperArm")
-		local hand = character:FindFirstChild(side .. "Hand")
-		if not arm or not hand then continue end
+		local arm = character:FindFirstChild(r15 and (side .. "UpperArm") or (side .. " Arm"))
+		if not arm then continue end
+		local target = Vector3.new(direction*shell.Size.X*0.38, -shell.Size.Y*0.36, shell.Size.Z*0.12)
+		if r15 then
+			local hand = character:FindFirstChild(side .. "Hand")
+			if not hand then continue end
+			local grip = Instance.new("Attachment")
+			grip.Name = side .. "ShellGrip"
+			grip.Position = target
+			grip.Parent = shell
 
-		local grip = Instance.new("Attachment")
-		grip.Name = side .. "ShellGrip"
-		grip.Position = Vector3.new(
-			direction * (shell.Size.X * 0.32 + hand.Size.X * 0.42),
-			-shell.Size.Y * 0.38,
-			-shell.Size.Z * 0.1
-		)
-		grip.Parent = shell
+			local elbow = Instance.new("Attachment")
+			elbow.Name = side .. "CarryElbow"
+			elbow.Position = Vector3.new(direction*(torso.Size.X*0.6+arm.Size.X*0.5), -torso.Size.Y*0.38, -torso.Size.Z*0.42)
+			elbow.Parent = torso
 
-		local elbow = Instance.new("Attachment")
-		elbow.Name = side .. "CarryElbow"
-		elbow.Position = Vector3.new(
-			direction * (torso.Size.X * 0.72 + arm.Size.X * 0.7),
-			torso.Size.Y * 0.2,
-			-torso.Size.Z * 0.72
-		)
-		elbow.Parent = torso
-
-		local carry = Instance.new("IKControl")
-		carry.Name = side .. "EggCarry"
-		carry.Type = Enum.IKControlType.Position
-		carry.ChainRoot = arm
-		carry.EndEffector = hand
-		carry.Target = grip
-		carry.Pole = elbow
-		carry.SmoothTime = 0.055
-		carry.Priority = 10
-		carry.Parent = humanoid
-		table.insert(poseObjects, carry)
-		table.insert(poseObjects, elbow)
+			local carry = Instance.new("IKControl")
+			carry.Name = side .. "EggCarry"
+			carry.Type = Enum.IKControlType.Position
+			carry.ChainRoot = arm
+			carry.EndEffector = hand
+			carry.EndEffectorOffset = CFrame.new(0,-hand.Size.Y*0.36,0)
+			carry.Target = grip
+			carry.Pole = elbow
+			carry.SmoothTime = 0.04
+			carry.Priority = 10
+			carry.Parent = humanoid
+			table.insert(poseObjects, carry)
+			table.insert(poseObjects, elbow)
+		else
+			local shoulder = torso:FindFirstChild(side .. " Shoulder")
+			if not shoulder or not shoulder:IsA("Motor6D") or not shoulder.Enabled then continue end
+			local wrist = offset:PointToWorldSpace(target)
+			local up = (shoulder.C0.Position-wrist).Unit
+			local back = Vector3.xAxis:Cross(up).Unit
+			local right = up:Cross(back)
+			local brace = Instance.new("Weld")
+			brace.Name = side .. "EggCarry"
+			brace.Part0, brace.Part1 = torso, arm
+			brace.C0 = CFrame.fromMatrix(wrist+up*arm.Size.Y*0.48,right,up,back)
+			shoulder.Enabled = false
+			brace.Parent = shell
+			table.insert(shoulders,shoulder)
+			table.insert(poseObjects,brace)
+		end
 	end
-	-- The targets go with the shell. Detach controls from the avatar when it breaks or is swapped.
-	egg.Destroying:Once(function()
+	activePoses[egg] = function()
 		for _, object in poseObjects do object:Destroy() end
-	end)
+		for _, shoulder in shoulders do
+			if shoulder.Parent then shoulder.Enabled = true end
+		end
+	end
+	egg.Destroying:Once(function() releasePose(egg) end)
 end
 
 function Eggs.attach(player, data, hp)
@@ -111,26 +131,33 @@ function Eggs.attach(player, data, hp)
 	local head = character and character:FindFirstChild("Head")
 	if not head then return end
 	local existing = character:FindFirstChild("CourierEgg")
-	if existing then existing:Destroy() end
+	if existing then
+		releasePose(existing)
+		existing:Destroy()
+	end
 	if hp <= 0 then return end
-	local egg = EggModel.build(data.skin, head.Size.X * 1.5, false)
-	local offset = CFrame.new(0,head.Size.Y/2+egg.PrimaryPart.Size.Y/2+0.34,0)
-	egg:PivotTo(head.CFrame * offset)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+	if not humanoid or not torso then return end
+	local egg = EggModel.build(data.skin, math.clamp(torso.Size.X*0.72,0.65,2.6), false)
+	local shell = egg.PrimaryPart
+	local offset = CFrame.new(0,-torso.Size.Y*0.22,-(torso.Size.Z+shell.Size.Z)*0.5-0.12)
+	egg:PivotTo(torso.CFrame * offset)
 	egg.Parent = character
 	local motor = Instance.new("Motor6D")
 	motor.Name = "EggMotor"
-	motor.Part0 = head
+	motor.Part0 = torso
 	motor.Part1 = egg.PrimaryPart
 	motor.C0 = offset
 	motor.Parent = egg.PrimaryPart
-	poseArms(character,egg)
+	poseArms(character,humanoid,torso,egg,offset)
 	EggModel.condition(egg,hp)
 	local previous = head:FindFirstChild("CourierTitle")
 	if previous then previous:Destroy() end
 	local nameplate = Instance.new("BillboardGui",head)
 	nameplate.Name = "CourierTitle"
 	nameplate.Size = UDim2.fromScale(6,0.8)
-	nameplate.StudsOffset = Vector3.new(0,head.Size.Y+3,0)
+	nameplate.StudsOffset = Vector3.new(0,head.Size.Y+0.85,0)
 	nameplate.MaxDistance = 36
 	local title = Instance.new("TextLabel",nameplate)
 	title.Size = UDim2.fromScale(1,1)
@@ -187,6 +214,7 @@ function Eggs.condition(player, hp)
 			fragment.AssemblyAngularVelocity = Vector3.new(i,3,1)
 			Debris:AddItem(fragment,0.7)
 		end
+		releasePose(egg)
 		egg:Destroy()
 	end
 end

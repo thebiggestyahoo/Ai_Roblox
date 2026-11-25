@@ -52,7 +52,7 @@ local function plaque(c, text, px, py, pz, width, height, color)
 		words.Position = UDim2.fromScale(0.03,0.1)
 		words.BackgroundTransparency = 1
 		words.TextColor3 = color
-		words.Font = Enum.Font.GothamBlack
+		words.Font = Enum.Font.FredokaOne
 		words.Text = text
 		words.TextScaled = true
 	end
@@ -91,7 +91,7 @@ local function finishGate(c)
 		title.Size = UDim2.fromScale(0.92,0.39)
 		title.Text = "FINISH"
 		title.TextColor3 = cream
-		title.Font = Enum.Font.GothamBlack
+		title.Font = Enum.Font.FredokaOne
 		title.TextScaled = true
 		local counter = Instance.new("TextLabel",surface)
 		counter.Name = "Finish slots"
@@ -151,27 +151,16 @@ end
 
 local sections = {}
 
-function sections.bumper(c,z,index)
-	local width = 19
-	deck(c,z,z+44,width)
-	for i=1,3 do
-		local row=z+8+(i-1)*14
-		deckDots(c,0,row,width,0)
-		obstacle(c,"ball",0,0,row,index*0.57+i*1.74,{size=v(7.2,7.2,7.2),range=8.2,speed=2.04})
-		if i<3 then waitingBay(c,row+7,width) end
-	end
-	return 44,width
-end
-
 function sections.punch(c,z,index)
-	local width = 15
+	local width = 19
 	deck(c,z,z+42,width)
+	gate(c,"FOAM FISTS • WAIT FOR THE OPEN SIDE",z+2,width,c.colors.rim)
 	for i=1,3 do
 		local row=z+8+(i-1)*13
-		obstacle(c,"foam",0,0,row,index*0.78+i*2.09,{size=v(10.5,4.8,3.05),range=9.8,speed=1.88})
+		obstacle(c,"foam",0,0,row,index*0.78+i*2.09,{size=v(8.8,3.2,2.15),y=1.6,range=7,speed=1.28})
 		for _, side in {-1,1} do
-			part(c,"Piston housing",side*10.4,1.2,row,v(3.1,3.3,4.9),ink)
-			light(c,"Piston stripe",side*9.85,3,row,v(0.5,0.12,3.4),c.colors.rim)
+			part(c,"Piston housing",side*12.1,1.2,row,v(3.1,3.3,4.9),ink)
+			light(c,"Piston stripe",side*11.55,3,row,v(0.5,0.12,3.4),c.colors.rim)
 		end
 		if i<3 then waitingBay(c,row+6.5,width) end
 	end
@@ -182,26 +171,14 @@ function sections.steps(c,z,index)
 	local width=15
 	banks(c,z,50,width,5,5.8)
 	for i=1,3 do
-		local begin=z+9.4+(i-1)*11.55
+		local begin=z+8.8+(i-1)*11.55
 		local px=(i%2==index%2 and -1 or 1)*(c.pace>1.1 and 3 or 2.4)
 		local top=(i%2)*0.35
-		deck(c,begin,begin+6.75,9,px,top,c.colors.deck)
+		deck(c,begin,begin+7.65,11,px,top,c.colors.deck)
 		deckDots(c,px,begin+1,9,top)
 		deckDots(c,px,begin+5.65,9,top)
 	end
 	return 50,width
-end
-
-function sections.spinners(c,z,index)
-	local width=16
-	banks(c,z,51,width,5.6,6)
-	for i=1,2 do
-		local px=(i%2==index%2 and -1 or 1)*1.2
-		local row=z+15.9+(i-1)*18.6
-		disc(c,px,row,7.5,c.colors.deck)
-		obstacle(c,"sweep",px,0,row,index+i*2.3,{size=v(17.2,0.9,1.35),speed=2.22})
-	end
-	return 51,width
 end
 
 function sections.rafts(c,z,index)
@@ -209,7 +186,7 @@ function sections.rafts(c,z,index)
 	banks(c,z,45,width,6,6)
 	for i=1,2 do
 		obstacle(c,"moving",0,0,z+15.55+(i-1)*13.9,index+i*2.8,{
-			size=v(11.7,1.9,10.1),y=-0.95,range=2.25,speed=1.46,color=c.colors.rim,
+			size=v(11.7,1.9,10.1),y=-0.95,range=2.15,speed=1.15,color=c.colors.rim,
 		})
 	end
 	return 45,width
@@ -235,7 +212,7 @@ function sections.tilts(c,z,index)
 	banks(c,z,46,width,6,6)
 	for i=1,2 do
 		obstacle(c,"tilt",i%2==index%2 and -1.65 or 1.65,0,z+15.7+(i-1)*14.8,index+i*2.1,{
-			size=v(9.1,1.9,10.2),y=-0.95,range=0.31,speed=1.57,color=c.colors.rim,
+			size=v(11.8,1.9,11.8),y=-0.95,range=0.19,speed=1.13,color=c.colors.rim,
 		})
 	end
 	return 46,width
@@ -250,13 +227,13 @@ function sections.swing(c,z,index)
 			part(c,"Pendulum stanchion",side*9,8,row,v(1,16,1),ink)
 		end
 		part(c,"Pendulum crossbeam",0,16,row,v(19.5,1.15,1.15),ink)
-		obstacle(c,"pendulum",0,0,row,index+i*2.3,{size=v(5.7,5.7,5.7),range=8.4,speed=2.08})
+		obstacle(c,"pendulum",0,0,row,index+i*2.3,{size=v(4.6,4.6,4.6),range=7.8,speed=1.26})
 		if i==1 then waitingBay(c,row+7.4,width) end
 	end
 	return 39,width
 end
 
-function sections.duel(c,z,index)
+function sections.duel(c,z)
 	local width=14.5
 	deck(c,z,z+37,width)
 	for _, side in {-1,1} do
@@ -269,24 +246,7 @@ function sections.duel(c,z,index)
 	marking(c,z+31.5,width-0.5,0,red)
 	gate(c,"CRACK ZONE",z+5.5,width,amber)
 	table.insert(c.zones,{z=c.z+18.5,extent=13,width=width/2})
-	obstacle(c,"sweep",0,0,z+23,index*2.14,{size=v(width+1,0.72,0.95),speed=1.95,color=amber})
 	return 37,width
-end
-
-function sections.shutters(c,z,index)
-	local width=15
-	deck(c,z,z+39,width)
-	for i=1,3 do
-		local row=z+5+i*8.2
-		for _, side in {-1,1} do
-			part(c,"Shutter guide",side*8.9,7.3,row,v(1.25,14.6,1.5),ink)
-			light(c,"Shutter height rail",side*8.25,7.3,row-0.43,v(0.16,12,0.2),amber)
-		end
-		part(c,"Shutter rail top",0,14.6,row,v(19,0.9,1.7),ink)
-		obstacle(c,"door",0,0,row,index*0.78+i*2.11,{size=v(16,7,1.2),y=3.5,range=7.2,speed=1.5})
-		marking(c,row-1.3,width-0.6,0,amber)
-	end
-	return 39,width
 end
 
 function sections.blink(c,z,index)
@@ -295,7 +255,7 @@ function sections.blink(c,z,index)
 	gate(c,"LAND ON SOLID TILES",z+2,16,c.colors.rim)
 	deck(c,z+21,z+28,8.8)
 	for i,row in {z+13.5,z+35.5} do
-		obstacle(c,"vanish",0,0,row,index*0.63+i*1.86,{size=v(9.4,1.8,8.1),y=-0.9,period=4.65,open=1.28,color=c.colors.rim})
+		obstacle(c,"vanish",0,0,row,index*0.63+i*1.86,{size=v(11,1.8,9.4),y=-0.9,period=5.8,open=1.55,color=c.colors.rim})
 		for _, side in {-1,1} do
 			light(c,"Ghost tile mount",side*5.4,-0.8,row,v(0.42,0.35,7),c.colors.lane)
 		end
@@ -308,7 +268,7 @@ function sections.heat(c,z,index)
 	deck(c,z,z+41,width)
 	for i=1,3 do
 		local row=z+8+(i-1)*12.5
-		obstacle(c,"pulse",0,0,row,index*0.55+i*1.2,{size=v(width+0.25,0.22,4.65),period=3.5,open=1.32,color=c.colors.deck})
+		obstacle(c,"pulse",0,0,row,index*0.55+i*1.2,{size=v(width+0.25,0.22,4.65),period=4.6,open=1.25,color=c.colors.deck})
 		marking(c,row-2.65,width-0.5,0,c.colors.rim)
 		if i<3 then waitingBay(c,row+6.25,width) end
 	end
@@ -321,20 +281,20 @@ function sections.rollers(c,z,index)
 	for i=1,3 do
 		local row=z+8+(i-1)*11.5
 		deckDots(c,0,row,width,0)
-		obstacle(c,"roller",0,0,row,index+i*1.9,{size=v(11.5,3.5,3.5),y=1.75,range=7.5,speed=2.4})
+		obstacle(c,"roller",0,0,row,index+i*1.9,{size=v(9,2.2,2.2),y=1.1,range=5.6,speed=1.35})
 		if i<3 then waitingBay(c,row+5.75,width) end
 	end
 	return 39,width
 end
 
 function sections.ice(c,z,index)
-	local width=16.5
+	local width=22
 	local p=deck(c,z,z+41,width,0,0,rgb("83bdcd"))
-	p.CustomPhysicalProperties=PhysicalProperties.new(1,0.012,0)
+	p.CustomPhysicalProperties=PhysicalProperties.new(1,0.14,0)
 	p.Material=Enum.Material.Ice
 	for _, side in {-1,1} do
-		light(c,"Snowball lane",side*4.15,0.026,z+20,v(0.13,0.055,29),c.colors.lane)
-		obstacle(c,"snowball",side*4.15,0,z+20,index*0.68+side*1.8,{size=v(6.3,6.3,6.3),y=3.15,range=12.9,speed=1.85,color=cream})
+		light(c,"Snowball lane",side*5.8,0.026,z+20,v(0.13,0.055,29),c.colors.lane)
+		obstacle(c,"snowball",side*5.8,0,z+20,index*0.68+side*1.8,{size=v(4.4,4.4,4.4),y=2.2,range=11.5,speed=1.25,color=cream})
 	end
 	return 41,width
 end
@@ -343,9 +303,9 @@ function sections.orbit(c,z,index)
 	local width=16
 	banks(c,z,47,width,4.5,5)
 	for i=1,3 do
-		local row=z+13+i*10-10
+		local row=z+12+i*10-10
 		local px=(i%2==index%2 and -1 or 1)*2.4
-		disc(c,px,row,3.95,c.colors.deck)
+		disc(c,px,row,4.85,c.colors.deck)
 		local radius=4.75
 		for j=1,4 do
 			local t=j*math.pi/2
@@ -360,7 +320,7 @@ function sections.relic(c,z,index)
 	deck(c,z,z+41,width)
 	for i=1,3 do
 		local row=z+8+(i-1)*12.5
-		obstacle(c,"pulse",0,0,row,index*0.7+i*1.2,{size=v(width,0.22,4),period=3.85,open=1.47,color=c.colors.rock})
+		obstacle(c,"pulse",0,0,row,index*0.7+i*1.2,{size=v(width,0.22,4),period=4.8,open=1.2,color=c.colors.rock})
 		for _, side in {-1,1} do
 			part(c,"Stone column",side*8.7,1.3,row,v(1.4,2.6,1.4),c.colors.rock)
 			light(c,"Column beacon",side*8.7,2.72,row,v(0.72,0.35,0.72),c.colors.lane)
@@ -383,13 +343,13 @@ function sections.chase(c,z,index)
 	deck(c,z+8,z+45,9.8)
 	gate(c,"BOULDERS • USE THE ALCOVES",z+4.5,18,c.colors.rim)
 	for _, side in {-1,1} do
-		for _, at in {19,34} do
-			deck(c,z+at-2.65,z+at+2.65,5.1,side*5.6,0,c.colors.rock)
+		for _, at in {13,25,37} do
+			deck(c,z+at-3.3,z+at+3.3,5.1,side*5.6,0,c.colors.rock)
 			light(c,"Alcove lip",side*7.95,0.04,z+at,v(0.21,0.08,4.8),c.colors.lane)
 			part(c,"Alcove ruin",side*8.6,1.45,z+at,v(1.15,2.9,3.2),c.colors.rock)
 		end
 	end
-	obstacle(c,"boulder",0,0,z+28,index*0.81,{color=c.colors.rock,range=16})
+	obstacle(c,"boulder",0,0,z+28,index*0.81,{color=c.colors.rock,range=16,size=v(6.3,6.3,6.3),y=3.15,period=7.5,travel=3.55})
 	return 55,width
 end
 
@@ -400,7 +360,7 @@ function sections.rope(c,z,index)
 		local first=10.6+(i-1)*10.1
 		local px=(i%2==index%2 and -1 or 1)*1.45
 		local top=0.18*(i%2)
-		deck(c,z+first,z+first+5.2,8.25,px,top,rgb("926648")).Material = Enum.Material.WoodPlanks
+		deck(c,z+first,z+first+6.7,9.6,px,top,rgb("926648")).Material = Enum.Material.WoodPlanks
 		for _, side in {-1,1} do
 			part(c,"Rope bridge beam",px+side*3.9,-0.3+top,z+first+2.6,v(0.24,0.26,5.3),c.colors.rim)
 		end
@@ -412,6 +372,175 @@ function sections.rope(c,z,index)
 		end
 	end
 	return 46,width
+end
+
+local function pinball(c,z,final)
+	local width = 25
+	deck(c,z,z+45,width)
+	gate(c,final and "JACKPOT • PICK AN OPEN LANE" or "PINBALL • WAIT IN THE GREEN POCKETS",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local row = z+11+i*8.5
+		local lane = if final then (i-2)*6 else 0
+		waitingBay(c,row-4,width)
+		obstacle(c,"ball",lane,0,row,i*1.8,{size=v(5,5,5),y=2.5,range=final and 5.2 or 7.5,speed=1.24,bounce=2, color=c.colors.hazard})
+		for _, side in {-1,1} do
+			part(c,"Pinball table bumper",side*13,1.2,row,v(2.7,2.7,2.7),c.colors.rim,false,Enum.PartType.Ball)
+			light(c,"Lane arrow",side*10.6,0.055,row,v(0.4,0.07,3.2),c.colors.lane)
+		end
+	end
+	return 45,width
+end
+
+function sections.pinball(c,z) return pinball(c,z,false) end
+function sections.pinballFinal(c,z) return pinball(c,z,true) end
+
+local function carousel(c,z,final)
+	local width = final and 14 or 17
+	banks(c,z,51,width,7,7)
+	gate(c,"CAROUSEL • JUMP THE SWEEP ARM",z+3,width,c.colors.rim)
+	for i=1,2 do
+		local row = z+16+i*18-18
+		deck(c,row-7,row+7,width)
+		disc(c,0,row,7.4,rgb("ffccf0"))
+		obstacle(c,"sweep",0,0,row,i*1.9,{size=v(final and 15 or 13,0.7,0.85),y=0.57,speed=final and 1.28 or 0.95,color=c.colors.hazard})
+		for j=1,8 do
+			local angle = j*math.pi/4
+			part(c,"Carousel candy lamp",math.cos(angle)*10,2,row+math.sin(angle)*7,v(0.8,0.8,0.8),c.colors.rim,false,Enum.PartType.Ball)
+		end
+	end
+	deck(c,z+23,z+27,width)
+	return 51,width
+end
+
+function sections.carousel(c,z) return carousel(c,z,false) end
+function sections.carouselFinal(c,z) return carousel(c,z,true) end
+
+local function backlot(c,z,final)
+	local width = 23
+	deck(c,z,z+42,width)
+	gate(c,"STUNT SET • FOLLOW THE OPEN SIDE",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local row = z+7+i*9
+		local side = (i%2==0 and -1 or 1)*(final and -1 or 1)
+		waitingBay(c,row-4,width)
+		part(c,"Oversized foam fist housing",side*13,2,row,v(4,4,5),c.colors.rock)
+		obstacle(c,"foam",side*8,0,row,i*2,{range=3.6,size=v(7.5,3.2,2.1),y=1.6,speed=1.25,color=rgb("ff6ba8")})
+		part(c,"Open lane marker",-side*7,0.03,row,v(5,0.06,2.5),rgb("83eab7"))
+	end
+	return 42,width
+end
+
+function sections.backlot(c,z) return backlot(c,z,false) end
+function sections.backlotFinal(c,z) return backlot(c,z,true) end
+
+function sections.river(c,z,index)
+	local width = 22
+	banks(c,z,45,width,8,8)
+	gate(c,"RIVER STUDIO • RIDE OR HOP",z+3,width,c.colors.rim)
+	deck(c,z+10,z+18,7,-5,0,rgb("94724f"))
+	deck(c,z+20,z+26,9,0,0,rgb("94724f"))
+	deck(c,z+28,z+36,8,5,0,rgb("94724f"))
+	obstacle(c,"moving",7,0,z+15,index,{size=v(7,1.4,9),range=3.1,speed=0.9,color=c.colors.rim})
+	obstacle(c,"moving",-7,0,z+30,index+2,{size=v(7,1.4,9),range=3.1,speed=0.9,color=c.colors.rim})
+	return 45,width
+end
+
+function sections.hedges(c,z)
+	local width = 21
+	deck(c,z,z+41,width)
+	gate(c,"HEDGE MAZE • FOLLOW THE GAPS",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local side = i%2==0 and -1 or 1
+		local row = z+6+i*9
+		part(c,"Garden hedge",side*4,2.8,row,v(13,5.6,2.1),rgb("398559"),true)
+		part(c,"Flower trim",side*4,5.58,row,v(13.2,0.32,2.2),rgb("e8a7ea"))
+		part(c,"Path marker",-side*6,0.03,row,v(4.8,0.06,2),c.colors.lane)
+	end
+	return 41,width
+end
+
+local function mushrooms(c,z,final)
+	local width = 21
+	banks(c,z,44,width,7,7)
+	gate(c,"MUSHROOM GROVE • HOP THE CAPS",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local x = (i%2==0 and -1 or 1)*(final and -2.7 or 2.1)
+		local row = z+12+(i-1)*10.4
+		local top = if i==2 then 1.7 else 0.7
+		part(c,"Mushroom stalk",x,-2,row,v(5,6.2,5),cream)
+		part(c,"Mushroom cap",x,top-0.7,row,v(1.4,9,9),rgb("e95786"),true,Enum.PartType.Cylinder,CFrame.Angles(0,0,math.pi/2))
+		for _, offset in {-2.5,2.5} do
+			part(c,"Mushroom cap spots",x+offset,top+0.03,row,v(1.2,0.06,1.1),cream)
+		end
+	end
+	return 44,width
+end
+
+function sections.mushrooms(c,z) return mushrooms(c,z,false) end
+function sections.mushroomsFinal(c,z) return mushrooms(c,z,true) end
+
+function sections.foundry(c,z)
+	local width = 21
+	deck(c,z,z+45,width)
+	gate(c,"FURNACE • AMBER MEANS WAIT",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local row = z+7+i*9
+		local side = i%2==0 and -1 or 1
+		waitingBay(c,row-4,width)
+		obstacle(c,"pulse",side*3,0,row,i*1.9,{size=v(14.8,0.22,4.25),period=4.65,open=1.25})
+		part(c,"Furnace copper pipe",side*12,4,row,v(2.5,8,2.5),c.colors.rim)
+	end
+	return 45,width
+end
+
+local function slalom(c,z,final)
+	local width = 25
+	deck(c,z,z+48,width)
+	gate(c,"SNOWBALL SLALOM • USE THE OUTER BANKS",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local side = (i%2==0 and -1 or 1)*(final and -1 or 1)
+		local row = z+9+i*9
+		part(c,"Packed snow drift",side*3.2,1.7,row-4.7,v(9,3.4,2.3),rgb("d4f2ff"),true)
+		obstacle(c,"snowball",side*4,0,row,i*2,{size=v(4.6,4.6,4.6),y=2.3,range=5.5,speed=1.3,color=cream})
+		part(c,"Packed snow refuge",-side*8,0.03,row,v(7,0.06,5),rgb("a1e5f5"))
+		part(c,"Slalom flag",-side*11,2,row,v(0.32,4,0.32),c.colors.rim)
+	end
+	return 48,width
+end
+
+function sections.slalom(c,z) return slalom(c,z,false) end
+function sections.slalomFinal(c,z) return slalom(c,z,true) end
+
+local function moon(c,z,final)
+	local width = 18
+	banks(c,z,45,width,7,8)
+	gate(c,"MOON HOPS • JUMP IN THE GLOW",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local x = (i%2==0 and -1 or 1)*(final and -2.2 or 2.2)
+		local row = z+12+i*9-9
+		disc(c,x,row,4.2,c.colors.deck)
+		obstacle(c,"gravity",x,0,row,i,{size=v(8,10,7.8),y=5,speed=45,color=c.colors.lane}).part.Transparency = 0.9
+		light(c,"Gravity pad",x,0.035,row,v(3.4,0.07,3.4),c.colors.lane)
+	end
+	return 45,width
+end
+
+function sections.moon(c,z) return moon(c,z,false) end
+function sections.moonFinal(c,z) return moon(c,z,true) end
+
+function sections.temple(c,z)
+	local width = 21
+	deck(c,z,z+44,width)
+	gate(c,"TEMPLE • DODGE INTO THE SIDE LANES",z+3,width,c.colors.rim)
+	for i=1,2 do
+		local row = z+6+i*13
+		obstacle(c,"boulder",0,0,row,i*2,{size=v(5.5,5.5,5.5),y=2.75,range=7,period=6.4,travel=2.9,color=c.colors.rock})
+		for _, side in {-1,1} do
+			part(c,"Refuge mosaic",side*7,0.03,row,v(5,0.06,9),c.colors.lane)
+			part(c,"Temple guardian",side*12,3,row,v(2.8,6,3.8),c.colors.rock)
+		end
+	end
+	return 44,width
 end
 
 local function landmark(c, island, z)

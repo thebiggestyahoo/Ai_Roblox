@@ -18,9 +18,9 @@ local remote = Shared:WaitForChild("CourierEvent")
 local player = Players.LocalPlayer
 
 local rgb = Color3.fromHex
-local ink, charcoal, muted = rgb("20281f"), rgb("374138"), rgb("596451")
-local paper, cream = rgb("fff5d8"), rgb("ebe1c4")
-local yellow, lime, rust = rgb("ffc639"), rgb("d3f480"), rgb("ff7657")
+local ink, charcoal, muted = rgb("272054"), rgb("493b79"), rgb("5e5078")
+local paper, cream = rgb("fff9ff"), rgb("ede3ff")
+local yellow, lime, rust = rgb("ffcf4b"), rgb("a8f4bd"), rgb("ff8eb5")
 local winnerRed = rgb("fa5451")
 local worlds = {
 	["Green Meadows"] = {color = rgb("b5e887"), hazards = "Rolling balls, spinners and rafts"},
@@ -30,8 +30,8 @@ local worlds = {
 	["Sunken Ruins"] = {color = rgb("8fe6cb"), hazards = "Rope crossings and relic chases"},
 }
 local typeface = Enum.Font.GothamMedium
-local heavy = Enum.Font.GothamBlack
-local digits = Enum.Font.Code
+local heavy = Enum.Font.FredokaOne
+local digits = Enum.Font.GothamBold
 local state = {stage = "Lobby", selected = 1, level = 1, deadline = 0}
 local race = {hp = 3, place = 1, total = 1, progress = 0, cooldown = 0, recover = 0}
 local profile = {skins = {Classic = true}, skin = "Classic", trails = {}, records = {}, title = 1, deliveries = 0}
@@ -70,7 +70,7 @@ local function frame(parent, color, size, position, radius)
 	if color then instance.BackgroundColor3 = color end
 	instance.Size = size
 	instance.Position = position or UDim2.new()
-	if radius then corner(instance, radius) end
+	if radius then corner(instance, math.min(radius + 3, 18)) end
 	instance.Parent = parent
 	return instance
 end
@@ -103,15 +103,28 @@ local function button(parent, text, color, textColor, callback)
 	instance.Text = text
 	instance.TextTruncate = Enum.TextTruncate.AtEnd
 	instance.TextSize = 13
-	instance.Font = Enum.Font.GothamBold
+	instance.Font = heavy
 	instance.Size = UDim2.new(1, 0, 0, 36)
-	corner(instance, 5)
+	corner(instance, 11)
+	outline(instance, ink, 1.5)
+	local gloss = Instance.new("UIGradient")
+	gloss.Rotation = 90
+	gloss.Color = ColorSequence.new(Color3.new(1,1,1),Color3.fromRGB(206,198,229))
+	gloss.Parent = instance
 	instance.Parent = parent
 	instance.Activated:Connect(function()
 		Audio.play("Click")
 		callback()
 	end)
 	return instance
+end
+
+local function bubblePanel(panel)
+	outline(panel, rgb("241b50"), 2.5)
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 90
+	gradient.Color = ColorSequence.new(Color3.new(1,1,1),rgb("e7d9ff"))
+	gradient.Parent = panel
 end
 
 local function limit(parent, x, y)
@@ -158,6 +171,7 @@ tint.BackgroundTransparency = 1
 local hud = frame(root, ink, UDim2.new(1, -30, 0, 86), UDim2.new(0.5, 0, 0, 8), 7)
 hud.AnchorPoint = Vector2.new(0.5, 0)
 limit(hud, 340, 86)
+bubblePanel(hud)
 local raceHeat = left(label(hud, "", yellow, UDim2.new(1, -94, 0, 16), UDim2.fromOffset(12, 6), 11, digits))
 local courseName = left(label(hud, "", paper, UDim2.new(1, -80, 0, 25), UDim2.fromOffset(12, 22), 15, heavy))
 local position = left(label(hud, "", paper, UDim2.fromOffset(34, 19), UDim2.fromOffset(12, 50), 12, heavy))
@@ -184,6 +198,7 @@ local coinCount = left(label(wallet, "0", ink, UDim2.fromOffset(60, 25), UDim2.f
 local dock = frame(root, ink, UDim2.new(1, -24, 0, 52), UDim2.new(0.5, 0, 1, -14), 7)
 dock.AnchorPoint = Vector2.new(0.5, 1)
 limit(dock, 448, 52)
+bubblePanel(dock)
 local dockInterior = frame(dock, nil, UDim2.new(1, -12, 1, -12), UDim2.fromOffset(6, 6))
 local play = button(dockInterior, "QUEUE", yellow, ink, function()
 	fire((state.queued or state.practiceQueued) and "lobby" or "queue")
@@ -239,7 +254,7 @@ draft.Visible = false
 limit(draft, 400, 233)
 local draftScale = Instance.new("UIScale")
 draftScale.Parent = draft
-outline(draft, paper, 1.5)
+bubblePanel(draft)
 frame(draft, yellow, UDim2.new(1, 0, 0, 4), nil, 2)
 left(label(draft, "MAP DRAW", yellow, UDim2.new(1, -120, 0, 24), UDim2.fromOffset(12, 10), 18, heavy))
 local draftCounter = label(draft, "", paper, UDim2.fromOffset(71, 24), UDim2.new(1, -82, 0, 11), 13, digits)
@@ -337,14 +352,15 @@ local modal = frame(root, nil, UDim2.fromScale(1, 1))
 modal.ZIndex = 10
 modal.Visible = false
 local shade = frame(modal, ink, UDim2.fromScale(1, 1))
-shade.BackgroundTransparency = 0.56
+shade.BackgroundTransparency = 0.31
 shade.Active = true
 local panel = frame(modal, paper, UDim2.new(1, -26, 0, 240), UDim2.fromScale(0.5, 0.5), 7)
 panel.AnchorPoint = Vector2.new(0.5, 0.5)
 limit(panel, 500, 620)
-outline(panel, ink, 2)
-local panelStripe = frame(panel, yellow, UDim2.new(1, 0, 0, 5), nil, 2)
-local panelTitle = left(label(panel, "", ink, UDim2.new(1, -72, 0, 47), UDim2.fromOffset(15, 5), 23, heavy))
+bubblePanel(panel)
+local panelStripe = frame(panel, yellow, UDim2.new(1, -16, 0, 43), UDim2.fromOffset(8, 7), 11)
+outline(panelStripe, ink, 1.5)
+local panelTitle = left(label(panel, "", ink, UDim2.new(1, -72, 0, 47), UDim2.fromOffset(20, 5), 25, heavy))
 local close = button(panel, "✕", cream, ink, function() setTab(nil) end)
 close.Size = UDim2.fromOffset(32, 31)
 close.Position = UDim2.new(1, -44, 0, 13)
@@ -400,34 +416,36 @@ local function showCourses()
 		if island ~= previousIsland then
 			worldNumber += 1
 			local header = append(frame(list, theme.color, UDim2.new(1, -8, 0, 65), nil, 7))
-			left(label(header, ("WORLD %d"):format(worldNumber), ink, UDim2.new(1, -24, 0, 14), UDim2.fromOffset(12, 5), 10, digits))
+			left(label(header, ("ISLAND %d"):format(worldNumber), ink, UDim2.new(1, -24, 0, 14), UDim2.fromOffset(12, 5), 10, digits))
 			left(label(header, island, ink, UDim2.new(1, -24, 0, 23), UDim2.fromOffset(12, 19), 19, heavy))
 			left(label(header, theme.hazards, ink, UDim2.new(1, -24, 0, 16), UDim2.fromOffset(12, 43), 11))
 			previousIsland = island
 		end
 		local available = index <= unlocked
 		local selected = index == state.selected
-		local card = append(frame(list, selected and theme.color or cream, UDim2.new(1, -8, 0, 85), nil, 6))
+		local card = append(frame(list, selected and theme.color or cream, UDim2.new(1, -8, 0, 100), nil, 9))
+		outline(card, ink, selected and 2 or 1)
 		local title = ("%02d  %s"):format(index, course.name)
-		left(label(card, title, ink, UDim2.new(1, -18, 0, 25), UDim2.fromOffset(9, 7), 13, heavy))
+		left(label(card, title, ink, UDim2.new(1, -18, 0, 25), UDim2.fromOffset(9, 5), 16, heavy))
+		left(label(card, course.hook, muted, UDim2.new(1, -18, 0, 19), UDim2.fromOffset(9, 28), 11))
 		local best = profile.records[Rules.recordKey(index)]
 		local detail = string.upper(course.rating)
 		if best then detail ..= ("  ·  PB %.2fs"):format(best) end
-		left(label(card, detail, ink, UDim2.new(1, -168, 0, 16), UDim2.fromOffset(9, 48), 10, digits))
+		left(label(card, detail, ink, UDim2.new(1, -168, 0, 16), UDim2.fromOffset(9, 63), 10, digits))
 		if available and not selected then
 			local pick = button(card, "PICK", paper, ink, function() fire("choose", tostring(index)) end)
 			pick.Size = UDim2.fromOffset(66, 42)
-			pick.Position = UDim2.new(1, -148, 0, 35)
+			pick.Position = UDim2.new(1, -148, 0, 50)
 			pick.TextSize = 11
 		else
-			label(card, selected and "PICKED" or "LOCKED", ink, UDim2.fromOffset(66, 42), UDim2.new(1, -148, 0, 35), 10, heavy)
+			label(card, selected and "PICKED" or "LOCKED", ink, UDim2.fromOffset(66, 42), UDim2.new(1, -148, 0, 50), 10, heavy)
 		end
 		local practice = button(card, "PRACTICE", ink, paper, function()
 			fire("practice", tostring(index))
 			setTab(nil)
 		end)
 		practice.Size = UDim2.fromOffset(70, 42)
-		practice.Position = UDim2.new(1, -76, 0, 35)
+		practice.Position = UDim2.new(1, -76, 0, 50)
 		practice.TextSize = 10
 	end
 end
@@ -493,7 +511,7 @@ local function showEggs()
 		left(label(card, message, lime, UDim2.new(0.58, -17, 0, 34), UDim2.new(0.42, 5, 1, -47), 11, heavy))
 	end
 
-	if source then row(source.rarity .. " · " .. source.name, muted, 12, heavy, 22) end
+	if source then row(source.rarity .. " · " .. source.name, muted, 13, heavy, 22) end
 
 	local collected = 0
 	for _, item in ipairs(Config.skins) do

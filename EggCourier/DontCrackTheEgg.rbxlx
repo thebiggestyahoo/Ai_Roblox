@@ -10,7 +10,7 @@
       <Item class="ModuleScript" referent="2">
         <Properties>
           <string name="Name">Config</string>
-          <string name="Source"><![CDATA[local C = {}
+          <string name="Source">local C = {}
 C.maxPlayers = 15
 C.intermission = 15
 C.draft = 8
@@ -72,7 +72,7 @@ function C.boxStatus(box, skins, deliveries)
 	for _, reward in ipairs(box.rewards) do
 		if not skins[reward.id] then
 			remaining += 1
-			if deliveries >= reward.deliveries then
+			if deliveries &gt;= reward.deliveries then
 				table.insert(ready, reward)
 			elseif not nextReward then
 				nextReward = reward
@@ -92,7 +92,7 @@ for _, box in ipairs(C.boxes) do
 	end
 end
 return C
-]]></string>
+</string>
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="3">
@@ -340,46 +340,45 @@ return EggModel
       <Item class="ModuleScript" referent="4">
         <Properties>
           <string name="Name">Levels</string>
-          <string name="Source">-- Sections run from the launch deck to the finish, in order.
-return {
-	{name = "Big Ball Boulevard", island = "Green Meadows", rating = "Tough", time = 65, pace = 1.00,
-		sections = {"bumper", "steps", "duel", "spinners", "rafts", "bumper"}},
-	{name = "Spinner Showdown", island = "Green Meadows", rating = "Tough", time = 70, pace = 1.08,
-		sections = {"spinners", "steps", "duel", "swing", "spinners", "ferry", "duel"}},
-	{name = "Punch Wall Panic", island = "Green Meadows", rating = "Severe", time = 75, pace = 1.13,
-		sections = {"punch", "rafts", "duel", "punch", "shutters", "duel", "steps", "punch"}},
-	{name = "The Wobbly Bridge", island = "Green Meadows", rating = "Severe", time = 80, pace = 1.18,
-		sections = {"tilts", "ferry", "spinners", "duel", "tilts", "swing", "duel", "rafts"}},
-	{name = "Meadow Mayhem", island = "Green Meadows", rating = "Brutal", time = 85, pace = 1.23,
-		sections = {"bumper", "tilts", "duel", "shutters", "rafts", "swing", "duel", "spinners", "steps"}},
-	{name = "Lava Leap", island = "The Egg Cooker", rating = "Brutal", time = 85, pace = 1.25,
-		sections = {"rollers", "heat", "duel", "blink", "ferry", "punch", "heat", "duel", "shutters"}},
-	{name = "Snowball Speedway", island = "Frozen Eggs", rating = "Brutal", time = 88, pace = 1.27,
-		sections = {"ice", "steps", "duel", "ferry", "ice", "tilts", "duel", "rafts", "ice"}},
-	{name = "Planet Hopper", island = "Eggstraterrestrial", rating = "Expert", time = 95, pace = 1.31,
-		sections = {"blink", "spinners", "ferry", "duel", "heat", "orbit", "blink", "duel", "spinners"}},
-	{name = "The Relic Run", island = "Sunken Ruins", rating = "Expert", time = 108, pace = 1.31,
-		sections = {"relic", "chase", "rope", "duel", "shutters", "relic", "rope", "duel", "chase"}},
+          <string name="Source"><![CDATA[return {
+	{name = "Big Ball Boulevard", island = "Green Meadows", rating = "Easy", time = 65, pace = 0.9,
+		hook = "Pinball lanes and safe pockets", sections = {"pinball", "steps", "duel", "pinballFinal"}},
+	{name = "Spinner Showdown", island = "Green Meadows", rating = "Moderate", time = 70, pace = 0.95,
+		hook = "Jump spinning carnival carousels", sections = {"carousel", "swing", "duel", "carouselFinal"}},
+	{name = "Punch Wall Panic", island = "Green Meadows", rating = "Moderate", time = 75, pace = 0.95,
+		hook = "Choose a side as foam fists swing out", sections = {"backlot", "punch", "duel", "backlotFinal"}},
+	{name = "The Wobbly Bridge", island = "Green Meadows", rating = "Tough", time = 80, pace = 0.95,
+		hook = "Ride floating rafts and rocking planks", sections = {"river", "rafts", "duel", "tilts"}},
+	{name = "Meadow Mayhem", island = "Green Meadows", rating = "Tough", time = 82, pace = 1,
+		hook = "Climb giant mushrooms and cross a hedge maze", sections = {"hedges", "mushrooms", "duel", "mushroomsFinal"}},
+	{name = "Lava Leap", island = "The Egg Cooker", rating = "Tough", time = 82, pace = 0.95,
+		hook = "Read the furnace lights and ride the ore ferry", sections = {"foundry", "heat", "duel", "ferry", "rollers"}},
+	{name = "Snowball Speedway", island = "Frozen Eggs", rating = "Tough", time = 82, pace = 0.95,
+		hook = "Slalom through snowball lanes with snowbank refuges", sections = {"slalom", "ice", "duel", "slalomFinal"}},
+	{name = "Planet Hopper", island = "Eggstraterrestrial", rating = "Expert", time = 92, pace = 0.95,
+		hook = "Jump through low-gravity craters and blinking bridges", sections = {"moon", "blink", "duel", "orbit", "moonFinal"}},
+	{name = "The Relic Run", island = "Sunken Ruins", rating = "Expert", time = 95, pace = 0.9,
+		hook = "Dodge temple boulders and cross a broken rope bridge", sections = {"temple", "chase", "duel", "rope", "relic"}},
 	future = {
 		{name = "The Egg Cooker", difficulty = "Brutal", levels = {"Conveyor Chaos", "Volcano Rush", "The Melting Bridge", "The Giant Egg Cooker"}},
 		{name = "Frozen Eggs", difficulty = "Brutal", levels = {"Slippery Slopes", "Iceberg Islands", "Frozen Spinner", "Blizzard Mountain"}},
 		{name = "Eggstraterrestrial", difficulty = "Expert", levels = {"Zero Gravity Jump", "Cosmic Conveyor", "Galaxy Gauntlet", "The Final Egg"}, reward = "Cosmic"},
 	},
 }
-</string>
+]]></string>
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="5">
         <Properties>
           <string name="Name">RaceRules</string>
-          <string name="Source">local Rules = {}
+          <string name="Source"><![CDATA[local Rules = {}
 
 function Rules.crossing(previous, current, line, center, width, minY, maxY)
-	if previous.Z &gt;= line or current.Z &lt; line then return nil end
+	if previous.Z >= line or current.Z < line then return nil end
 	local fraction = (line-previous.Z)/(current.Z-previous.Z)
 	local x = previous.X + (current.X-previous.X)*fraction
 	local y = previous.Y + (current.Y-previous.Y)*fraction
-	if math.abs(x-center) &lt;= width and y &gt;= (minY or 0.5) and y &lt;= (maxY or 8.5) then return fraction end
+	if math.abs(x-center) <= width and y >= (minY or 0.5) and y <= (maxY or 8.5) then return fraction end
 	return nil
 end
 
@@ -406,12 +405,12 @@ function Rules.drawMaps(random)
 end
 
 function Rules.recordKey(level)
-	return "knockout:" .. level
+	return "knockout:remix:" .. level
 end
 
 function Rules.complete(data, level, time, perfect, place, competitive)
 	local record = Rules.recordKey(level)
-	local personal = not data.records[record] or time &lt; data.records[record]
+	local personal = not data.records[record] or time < data.records[record]
 	if personal then data.records[record] = time end
 	local reward = 50 + (perfect and 25 or 0)
 	if competitive then
@@ -427,7 +426,7 @@ function Rules.complete(data, level, time, perfect, place, competitive)
 	return reward, personal
 end
 return Rules
-</string>
+]]></string>
         </Properties>
       </Item>
     </Item>
@@ -497,7 +496,7 @@ return CoinPacks
       <Item class="ModuleScript" referent="9">
         <Properties>
           <string name="Name">Courses</string>
-          <string name="Source">local Shared = game:GetService("ReplicatedStorage"):WaitForChild("EggShared")
+          <string name="Source"><![CDATA[local Shared = game:GetService("ReplicatedStorage"):WaitForChild("EggShared")
 local Levels = require(Shared.Levels)
 local Obstacles = require(script.Parent.Obstacles)
 
@@ -551,7 +550,7 @@ local function plaque(c, text, px, py, pz, width, height, color)
 		words.Position = UDim2.fromScale(0.03,0.1)
 		words.BackgroundTransparency = 1
 		words.TextColor3 = color
-		words.Font = Enum.Font.GothamBlack
+		words.Font = Enum.Font.FredokaOne
 		words.Text = text
 		words.TextScaled = true
 	end
@@ -590,7 +589,7 @@ local function finishGate(c)
 		title.Size = UDim2.fromScale(0.92,0.39)
 		title.Text = "FINISH"
 		title.TextColor3 = cream
-		title.Font = Enum.Font.GothamBlack
+		title.Font = Enum.Font.FredokaOne
 		title.TextScaled = true
 		local counter = Instance.new("TextLabel",surface)
 		counter.Name = "Finish slots"
@@ -650,29 +649,18 @@ end
 
 local sections = {}
 
-function sections.bumper(c,z,index)
-	local width = 19
-	deck(c,z,z+44,width)
-	for i=1,3 do
-		local row=z+8+(i-1)*14
-		deckDots(c,0,row,width,0)
-		obstacle(c,"ball",0,0,row,index*0.57+i*1.74,{size=v(7.2,7.2,7.2),range=8.2,speed=2.04})
-		if i&lt;3 then waitingBay(c,row+7,width) end
-	end
-	return 44,width
-end
-
 function sections.punch(c,z,index)
-	local width = 15
+	local width = 19
 	deck(c,z,z+42,width)
+	gate(c,"FOAM FISTS • WAIT FOR THE OPEN SIDE",z+2,width,c.colors.rim)
 	for i=1,3 do
 		local row=z+8+(i-1)*13
-		obstacle(c,"foam",0,0,row,index*0.78+i*2.09,{size=v(10.5,4.8,3.05),range=9.8,speed=1.88})
+		obstacle(c,"foam",0,0,row,index*0.78+i*2.09,{size=v(8.8,3.2,2.15),y=1.6,range=7,speed=1.28})
 		for _, side in {-1,1} do
-			part(c,"Piston housing",side*10.4,1.2,row,v(3.1,3.3,4.9),ink)
-			light(c,"Piston stripe",side*9.85,3,row,v(0.5,0.12,3.4),c.colors.rim)
+			part(c,"Piston housing",side*12.1,1.2,row,v(3.1,3.3,4.9),ink)
+			light(c,"Piston stripe",side*11.55,3,row,v(0.5,0.12,3.4),c.colors.rim)
 		end
-		if i&lt;3 then waitingBay(c,row+6.5,width) end
+		if i<3 then waitingBay(c,row+6.5,width) end
 	end
 	return 42,width
 end
@@ -681,26 +669,14 @@ function sections.steps(c,z,index)
 	local width=15
 	banks(c,z,50,width,5,5.8)
 	for i=1,3 do
-		local begin=z+9.4+(i-1)*11.55
-		local px=(i%2==index%2 and -1 or 1)*(c.pace&gt;1.1 and 3 or 2.4)
+		local begin=z+8.8+(i-1)*11.55
+		local px=(i%2==index%2 and -1 or 1)*(c.pace>1.1 and 3 or 2.4)
 		local top=(i%2)*0.35
-		deck(c,begin,begin+6.75,9,px,top,c.colors.deck)
+		deck(c,begin,begin+7.65,11,px,top,c.colors.deck)
 		deckDots(c,px,begin+1,9,top)
 		deckDots(c,px,begin+5.65,9,top)
 	end
 	return 50,width
-end
-
-function sections.spinners(c,z,index)
-	local width=16
-	banks(c,z,51,width,5.6,6)
-	for i=1,2 do
-		local px=(i%2==index%2 and -1 or 1)*1.2
-		local row=z+15.9+(i-1)*18.6
-		disc(c,px,row,7.5,c.colors.deck)
-		obstacle(c,"sweep",px,0,row,index+i*2.3,{size=v(17.2,0.9,1.35),speed=2.22})
-	end
-	return 51,width
 end
 
 function sections.rafts(c,z,index)
@@ -708,7 +684,7 @@ function sections.rafts(c,z,index)
 	banks(c,z,45,width,6,6)
 	for i=1,2 do
 		obstacle(c,"moving",0,0,z+15.55+(i-1)*13.9,index+i*2.8,{
-			size=v(11.7,1.9,10.1),y=-0.95,range=2.25,speed=1.46,color=c.colors.rim,
+			size=v(11.7,1.9,10.1),y=-0.95,range=2.15,speed=1.15,color=c.colors.rim,
 		})
 	end
 	return 45,width
@@ -734,7 +710,7 @@ function sections.tilts(c,z,index)
 	banks(c,z,46,width,6,6)
 	for i=1,2 do
 		obstacle(c,"tilt",i%2==index%2 and -1.65 or 1.65,0,z+15.7+(i-1)*14.8,index+i*2.1,{
-			size=v(9.1,1.9,10.2),y=-0.95,range=0.31,speed=1.57,color=c.colors.rim,
+			size=v(11.8,1.9,11.8),y=-0.95,range=0.19,speed=1.13,color=c.colors.rim,
 		})
 	end
 	return 46,width
@@ -749,13 +725,13 @@ function sections.swing(c,z,index)
 			part(c,"Pendulum stanchion",side*9,8,row,v(1,16,1),ink)
 		end
 		part(c,"Pendulum crossbeam",0,16,row,v(19.5,1.15,1.15),ink)
-		obstacle(c,"pendulum",0,0,row,index+i*2.3,{size=v(5.7,5.7,5.7),range=8.4,speed=2.08})
+		obstacle(c,"pendulum",0,0,row,index+i*2.3,{size=v(4.6,4.6,4.6),range=7.8,speed=1.26})
 		if i==1 then waitingBay(c,row+7.4,width) end
 	end
 	return 39,width
 end
 
-function sections.duel(c,z,index)
+function sections.duel(c,z)
 	local width=14.5
 	deck(c,z,z+37,width)
 	for _, side in {-1,1} do
@@ -768,24 +744,7 @@ function sections.duel(c,z,index)
 	marking(c,z+31.5,width-0.5,0,red)
 	gate(c,"CRACK ZONE",z+5.5,width,amber)
 	table.insert(c.zones,{z=c.z+18.5,extent=13,width=width/2})
-	obstacle(c,"sweep",0,0,z+23,index*2.14,{size=v(width+1,0.72,0.95),speed=1.95,color=amber})
 	return 37,width
-end
-
-function sections.shutters(c,z,index)
-	local width=15
-	deck(c,z,z+39,width)
-	for i=1,3 do
-		local row=z+5+i*8.2
-		for _, side in {-1,1} do
-			part(c,"Shutter guide",side*8.9,7.3,row,v(1.25,14.6,1.5),ink)
-			light(c,"Shutter height rail",side*8.25,7.3,row-0.43,v(0.16,12,0.2),amber)
-		end
-		part(c,"Shutter rail top",0,14.6,row,v(19,0.9,1.7),ink)
-		obstacle(c,"door",0,0,row,index*0.78+i*2.11,{size=v(16,7,1.2),y=3.5,range=7.2,speed=1.5})
-		marking(c,row-1.3,width-0.6,0,amber)
-	end
-	return 39,width
 end
 
 function sections.blink(c,z,index)
@@ -794,7 +753,7 @@ function sections.blink(c,z,index)
 	gate(c,"LAND ON SOLID TILES",z+2,16,c.colors.rim)
 	deck(c,z+21,z+28,8.8)
 	for i,row in {z+13.5,z+35.5} do
-		obstacle(c,"vanish",0,0,row,index*0.63+i*1.86,{size=v(9.4,1.8,8.1),y=-0.9,period=4.65,open=1.28,color=c.colors.rim})
+		obstacle(c,"vanish",0,0,row,index*0.63+i*1.86,{size=v(11,1.8,9.4),y=-0.9,period=5.8,open=1.55,color=c.colors.rim})
 		for _, side in {-1,1} do
 			light(c,"Ghost tile mount",side*5.4,-0.8,row,v(0.42,0.35,7),c.colors.lane)
 		end
@@ -807,9 +766,9 @@ function sections.heat(c,z,index)
 	deck(c,z,z+41,width)
 	for i=1,3 do
 		local row=z+8+(i-1)*12.5
-		obstacle(c,"pulse",0,0,row,index*0.55+i*1.2,{size=v(width+0.25,0.22,4.65),period=3.5,open=1.32,color=c.colors.deck})
+		obstacle(c,"pulse",0,0,row,index*0.55+i*1.2,{size=v(width+0.25,0.22,4.65),period=4.6,open=1.25,color=c.colors.deck})
 		marking(c,row-2.65,width-0.5,0,c.colors.rim)
-		if i&lt;3 then waitingBay(c,row+6.25,width) end
+		if i<3 then waitingBay(c,row+6.25,width) end
 	end
 	return 41,width
 end
@@ -820,20 +779,20 @@ function sections.rollers(c,z,index)
 	for i=1,3 do
 		local row=z+8+(i-1)*11.5
 		deckDots(c,0,row,width,0)
-		obstacle(c,"roller",0,0,row,index+i*1.9,{size=v(11.5,3.5,3.5),y=1.75,range=7.5,speed=2.4})
-		if i&lt;3 then waitingBay(c,row+5.75,width) end
+		obstacle(c,"roller",0,0,row,index+i*1.9,{size=v(9,2.2,2.2),y=1.1,range=5.6,speed=1.35})
+		if i<3 then waitingBay(c,row+5.75,width) end
 	end
 	return 39,width
 end
 
 function sections.ice(c,z,index)
-	local width=16.5
+	local width=22
 	local p=deck(c,z,z+41,width,0,0,rgb("83bdcd"))
-	p.CustomPhysicalProperties=PhysicalProperties.new(1,0.012,0)
+	p.CustomPhysicalProperties=PhysicalProperties.new(1,0.14,0)
 	p.Material=Enum.Material.Ice
 	for _, side in {-1,1} do
-		light(c,"Snowball lane",side*4.15,0.026,z+20,v(0.13,0.055,29),c.colors.lane)
-		obstacle(c,"snowball",side*4.15,0,z+20,index*0.68+side*1.8,{size=v(6.3,6.3,6.3),y=3.15,range=12.9,speed=1.85,color=cream})
+		light(c,"Snowball lane",side*5.8,0.026,z+20,v(0.13,0.055,29),c.colors.lane)
+		obstacle(c,"snowball",side*5.8,0,z+20,index*0.68+side*1.8,{size=v(4.4,4.4,4.4),y=2.2,range=11.5,speed=1.25,color=cream})
 	end
 	return 41,width
 end
@@ -842,9 +801,9 @@ function sections.orbit(c,z,index)
 	local width=16
 	banks(c,z,47,width,4.5,5)
 	for i=1,3 do
-		local row=z+13+i*10-10
+		local row=z+12+i*10-10
 		local px=(i%2==index%2 and -1 or 1)*2.4
-		disc(c,px,row,3.95,c.colors.deck)
+		disc(c,px,row,4.85,c.colors.deck)
 		local radius=4.75
 		for j=1,4 do
 			local t=j*math.pi/2
@@ -859,12 +818,12 @@ function sections.relic(c,z,index)
 	deck(c,z,z+41,width)
 	for i=1,3 do
 		local row=z+8+(i-1)*12.5
-		obstacle(c,"pulse",0,0,row,index*0.7+i*1.2,{size=v(width,0.22,4),period=3.85,open=1.47,color=c.colors.rock})
+		obstacle(c,"pulse",0,0,row,index*0.7+i*1.2,{size=v(width,0.22,4),period=4.8,open=1.2,color=c.colors.rock})
 		for _, side in {-1,1} do
 			part(c,"Stone column",side*8.7,1.3,row,v(1.4,2.6,1.4),c.colors.rock)
 			light(c,"Column beacon",side*8.7,2.72,row,v(0.72,0.35,0.72),c.colors.lane)
 		end
-		if i&lt;3 then waitingBay(c,row+6.25,width) end
+		if i<3 then waitingBay(c,row+6.25,width) end
 	end
 	for _, side in {-1,1} do
 		part(c,"Relic pedestal",side*10.2,1.05,z+5.5,v(2.7,2.1,3.4),ink)
@@ -882,13 +841,13 @@ function sections.chase(c,z,index)
 	deck(c,z+8,z+45,9.8)
 	gate(c,"BOULDERS • USE THE ALCOVES",z+4.5,18,c.colors.rim)
 	for _, side in {-1,1} do
-		for _, at in {19,34} do
-			deck(c,z+at-2.65,z+at+2.65,5.1,side*5.6,0,c.colors.rock)
+		for _, at in {13,25,37} do
+			deck(c,z+at-3.3,z+at+3.3,5.1,side*5.6,0,c.colors.rock)
 			light(c,"Alcove lip",side*7.95,0.04,z+at,v(0.21,0.08,4.8),c.colors.lane)
 			part(c,"Alcove ruin",side*8.6,1.45,z+at,v(1.15,2.9,3.2),c.colors.rock)
 		end
 	end
-	obstacle(c,"boulder",0,0,z+28,index*0.81,{color=c.colors.rock,range=16})
+	obstacle(c,"boulder",0,0,z+28,index*0.81,{color=c.colors.rock,range=16,size=v(6.3,6.3,6.3),y=3.15,period=7.5,travel=3.55})
 	return 55,width
 end
 
@@ -899,7 +858,7 @@ function sections.rope(c,z,index)
 		local first=10.6+(i-1)*10.1
 		local px=(i%2==index%2 and -1 or 1)*1.45
 		local top=0.18*(i%2)
-		deck(c,z+first,z+first+5.2,8.25,px,top,rgb("926648")).Material = Enum.Material.WoodPlanks
+		deck(c,z+first,z+first+6.7,9.6,px,top,rgb("926648")).Material = Enum.Material.WoodPlanks
 		for _, side in {-1,1} do
 			part(c,"Rope bridge beam",px+side*3.9,-0.3+top,z+first+2.6,v(0.24,0.26,5.3),c.colors.rim)
 		end
@@ -911,6 +870,175 @@ function sections.rope(c,z,index)
 		end
 	end
 	return 46,width
+end
+
+local function pinball(c,z,final)
+	local width = 25
+	deck(c,z,z+45,width)
+	gate(c,final and "JACKPOT • PICK AN OPEN LANE" or "PINBALL • WAIT IN THE GREEN POCKETS",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local row = z+11+i*8.5
+		local lane = if final then (i-2)*6 else 0
+		waitingBay(c,row-4,width)
+		obstacle(c,"ball",lane,0,row,i*1.8,{size=v(5,5,5),y=2.5,range=final and 5.2 or 7.5,speed=1.24,bounce=2, color=c.colors.hazard})
+		for _, side in {-1,1} do
+			part(c,"Pinball table bumper",side*13,1.2,row,v(2.7,2.7,2.7),c.colors.rim,false,Enum.PartType.Ball)
+			light(c,"Lane arrow",side*10.6,0.055,row,v(0.4,0.07,3.2),c.colors.lane)
+		end
+	end
+	return 45,width
+end
+
+function sections.pinball(c,z) return pinball(c,z,false) end
+function sections.pinballFinal(c,z) return pinball(c,z,true) end
+
+local function carousel(c,z,final)
+	local width = final and 14 or 17
+	banks(c,z,51,width,7,7)
+	gate(c,"CAROUSEL • JUMP THE SWEEP ARM",z+3,width,c.colors.rim)
+	for i=1,2 do
+		local row = z+16+i*18-18
+		deck(c,row-7,row+7,width)
+		disc(c,0,row,7.4,rgb("ffccf0"))
+		obstacle(c,"sweep",0,0,row,i*1.9,{size=v(final and 15 or 13,0.7,0.85),y=0.57,speed=final and 1.28 or 0.95,color=c.colors.hazard})
+		for j=1,8 do
+			local angle = j*math.pi/4
+			part(c,"Carousel candy lamp",math.cos(angle)*10,2,row+math.sin(angle)*7,v(0.8,0.8,0.8),c.colors.rim,false,Enum.PartType.Ball)
+		end
+	end
+	deck(c,z+23,z+27,width)
+	return 51,width
+end
+
+function sections.carousel(c,z) return carousel(c,z,false) end
+function sections.carouselFinal(c,z) return carousel(c,z,true) end
+
+local function backlot(c,z,final)
+	local width = 23
+	deck(c,z,z+42,width)
+	gate(c,"STUNT SET • FOLLOW THE OPEN SIDE",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local row = z+7+i*9
+		local side = (i%2==0 and -1 or 1)*(final and -1 or 1)
+		waitingBay(c,row-4,width)
+		part(c,"Oversized foam fist housing",side*13,2,row,v(4,4,5),c.colors.rock)
+		obstacle(c,"foam",side*8,0,row,i*2,{range=3.6,size=v(7.5,3.2,2.1),y=1.6,speed=1.25,color=rgb("ff6ba8")})
+		part(c,"Open lane marker",-side*7,0.03,row,v(5,0.06,2.5),rgb("83eab7"))
+	end
+	return 42,width
+end
+
+function sections.backlot(c,z) return backlot(c,z,false) end
+function sections.backlotFinal(c,z) return backlot(c,z,true) end
+
+function sections.river(c,z,index)
+	local width = 22
+	banks(c,z,45,width,8,8)
+	gate(c,"RIVER STUDIO • RIDE OR HOP",z+3,width,c.colors.rim)
+	deck(c,z+10,z+18,7,-5,0,rgb("94724f"))
+	deck(c,z+20,z+26,9,0,0,rgb("94724f"))
+	deck(c,z+28,z+36,8,5,0,rgb("94724f"))
+	obstacle(c,"moving",7,0,z+15,index,{size=v(7,1.4,9),range=3.1,speed=0.9,color=c.colors.rim})
+	obstacle(c,"moving",-7,0,z+30,index+2,{size=v(7,1.4,9),range=3.1,speed=0.9,color=c.colors.rim})
+	return 45,width
+end
+
+function sections.hedges(c,z)
+	local width = 21
+	deck(c,z,z+41,width)
+	gate(c,"HEDGE MAZE • FOLLOW THE GAPS",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local side = i%2==0 and -1 or 1
+		local row = z+6+i*9
+		part(c,"Garden hedge",side*4,2.8,row,v(13,5.6,2.1),rgb("398559"),true)
+		part(c,"Flower trim",side*4,5.58,row,v(13.2,0.32,2.2),rgb("e8a7ea"))
+		part(c,"Path marker",-side*6,0.03,row,v(4.8,0.06,2),c.colors.lane)
+	end
+	return 41,width
+end
+
+local function mushrooms(c,z,final)
+	local width = 21
+	banks(c,z,44,width,7,7)
+	gate(c,"MUSHROOM GROVE • HOP THE CAPS",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local x = (i%2==0 and -1 or 1)*(final and -2.7 or 2.1)
+		local row = z+12+(i-1)*10.4
+		local top = if i==2 then 1.7 else 0.7
+		part(c,"Mushroom stalk",x,-2,row,v(5,6.2,5),cream)
+		part(c,"Mushroom cap",x,top-0.7,row,v(1.4,9,9),rgb("e95786"),true,Enum.PartType.Cylinder,CFrame.Angles(0,0,math.pi/2))
+		for _, offset in {-2.5,2.5} do
+			part(c,"Mushroom cap spots",x+offset,top+0.03,row,v(1.2,0.06,1.1),cream)
+		end
+	end
+	return 44,width
+end
+
+function sections.mushrooms(c,z) return mushrooms(c,z,false) end
+function sections.mushroomsFinal(c,z) return mushrooms(c,z,true) end
+
+function sections.foundry(c,z)
+	local width = 21
+	deck(c,z,z+45,width)
+	gate(c,"FURNACE • AMBER MEANS WAIT",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local row = z+7+i*9
+		local side = i%2==0 and -1 or 1
+		waitingBay(c,row-4,width)
+		obstacle(c,"pulse",side*3,0,row,i*1.9,{size=v(14.8,0.22,4.25),period=4.65,open=1.25})
+		part(c,"Furnace copper pipe",side*12,4,row,v(2.5,8,2.5),c.colors.rim)
+	end
+	return 45,width
+end
+
+local function slalom(c,z,final)
+	local width = 25
+	deck(c,z,z+48,width)
+	gate(c,"SNOWBALL SLALOM • USE THE OUTER BANKS",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local side = (i%2==0 and -1 or 1)*(final and -1 or 1)
+		local row = z+9+i*9
+		part(c,"Packed snow drift",side*3.2,1.7,row-4.7,v(9,3.4,2.3),rgb("d4f2ff"),true)
+		obstacle(c,"snowball",side*4,0,row,i*2,{size=v(4.6,4.6,4.6),y=2.3,range=5.5,speed=1.3,color=cream})
+		part(c,"Packed snow refuge",-side*8,0.03,row,v(7,0.06,5),rgb("a1e5f5"))
+		part(c,"Slalom flag",-side*11,2,row,v(0.32,4,0.32),c.colors.rim)
+	end
+	return 48,width
+end
+
+function sections.slalom(c,z) return slalom(c,z,false) end
+function sections.slalomFinal(c,z) return slalom(c,z,true) end
+
+local function moon(c,z,final)
+	local width = 18
+	banks(c,z,45,width,7,8)
+	gate(c,"MOON HOPS • JUMP IN THE GLOW",z+3,width,c.colors.rim)
+	for i=1,3 do
+		local x = (i%2==0 and -1 or 1)*(final and -2.2 or 2.2)
+		local row = z+12+i*9-9
+		disc(c,x,row,4.2,c.colors.deck)
+		obstacle(c,"gravity",x,0,row,i,{size=v(8,10,7.8),y=5,speed=45,color=c.colors.lane}).part.Transparency = 0.9
+		light(c,"Gravity pad",x,0.035,row,v(3.4,0.07,3.4),c.colors.lane)
+	end
+	return 45,width
+end
+
+function sections.moon(c,z) return moon(c,z,false) end
+function sections.moonFinal(c,z) return moon(c,z,true) end
+
+function sections.temple(c,z)
+	local width = 21
+	deck(c,z,z+44,width)
+	gate(c,"TEMPLE • DODGE INTO THE SIDE LANES",z+3,width,c.colors.rim)
+	for i=1,2 do
+		local row = z+6+i*13
+		obstacle(c,"boulder",0,0,row,i*2,{size=v(5.5,5.5,5.5),y=2.75,range=7,period=6.4,travel=2.9,color=c.colors.rock})
+		for _, side in {-1,1} do
+			part(c,"Refuge mosaic",side*7,0.03,row,v(5,0.06,9),c.colors.lane)
+			part(c,"Temple guardian",side*12,3,row,v(2.8,6,3.8),c.colors.rock)
+		end
+	end
+	return 44,width
 end
 
 local function landmark(c, island, z)
@@ -1034,13 +1162,13 @@ function Courses.course(level, x, z)
 end
 
 return Courses
-</string>
+]]></string>
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="10">
         <Properties>
           <string name="Name">Data</string>
-          <string name="Source"><![CDATA[local DataStoreService = game:GetService("DataStoreService")
+          <string name="Source">local DataStoreService = game:GetService("DataStoreService")
 local RunService = game:GetService("RunService")
 local Http = game:GetService("HttpService")
 local Rules = require(game:GetService("ReplicatedStorage"):WaitForChild("EggShared").RaceRules)
@@ -1057,7 +1185,7 @@ local function normalize(raw)
 	local data = typeof(raw) == "table" and raw or {}
 	for key, fallback in {coins=0, wins=0, xp=0, unlocked=1, deliveries=0} do
 		local value = data[key]
-		data[key] = if typeof(value) == "number" and value >= fallback then math.floor(value) else fallback
+		data[key] = if typeof(value) == "number" and value &gt;= fallback then math.floor(value) else fallback
 	end
 	for _, key in {"skins","trails","records"} do
 		if typeof(data[key]) ~= "table" then data[key] = {} end
@@ -1075,7 +1203,7 @@ local function retry(operation)
 		local ok, result = pcall(operation)
 		if ok then return true, result end
 		errorMessage = result
-		if attempt < 3 then task.wait(attempt * 0.6) end
+		if attempt &lt; 3 then task.wait(attempt * 0.6) end
 	end
 	warn("Courier profile store:", errorMessage)
 	return false, nil
@@ -1098,7 +1226,7 @@ function D.load(player)
 	local ok, result = retry(function()
 		return getStore():UpdateAsync(key(player), function(old)
 			local envelope = typeof(old) == "table" and old or {}
-			if envelope.owner and envelope.owner ~= token and (envelope.expires or 0) > os.time() then return nil end
+			if envelope.owner and envelope.owner ~= token and (envelope.expires or 0) &gt; os.time() then return nil end
 			return {
 				owner=token, expires=os.time()+180, receipts=receiptLedger(envelope),
 				data=normalize(envelope.data or (not envelope.owner and old)),
@@ -1228,23 +1356,32 @@ function D.crown(player)
 	return 100
 end
 return D
-]]></string>
+</string>
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="11">
         <Properties>
           <string name="Name">Eggs</string>
-          <string name="Source">local Debris = game:GetService("Debris")
+          <string name="Source"><![CDATA[local Debris = game:GetService("Debris")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("EggShared")
 local EggModel = require(Shared.EggModel)
 local Eggs = {}
+local activePoses = setmetatable({}, {__mode = "k"})
+
+local function releasePose(egg)
+	local release = activePoses[egg]
+	if release then
+		activePoses[egg] = nil
+		release()
+	end
+end
 
 local championRed = Color3.fromHex("ff334b")
 
 function Eggs.aura(player, data)
 	local character = player.Character
 	if not character then return end
-	local enabled = (data.wins or 0) &gt; 0 and player:GetAttribute("WinnerAura") ~= false
+	local enabled = (data.wins or 0) > 0 and player:GetAttribute("WinnerAura") ~= false
 	local highlight = character:FindFirstChild("ChampionOutline")
 	if enabled and not highlight then
 		highlight = Instance.new("Highlight")
@@ -1293,53 +1430,64 @@ function Eggs.aura(player, data)
 	trail.Parent = root
 end
 
-local function poseArms(character, egg)
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	local torso = character:FindFirstChild("UpperTorso")
-	if not humanoid or humanoid.RigType ~= Enum.HumanoidRigType.R15 or not torso then return end
-
+local function poseArms(character, humanoid, torso, egg, offset)
 	local shell = egg.PrimaryPart
-	local poseObjects = {}
+	local poseObjects, shoulders = {}, {}
+	local r15 = humanoid.RigType == Enum.HumanoidRigType.R15
 	for side, direction in {Left=-1, Right=1} do
-		local arm = character:FindFirstChild(side .. "UpperArm")
-		local hand = character:FindFirstChild(side .. "Hand")
-		if not arm or not hand then continue end
+		local arm = character:FindFirstChild(r15 and (side .. "UpperArm") or (side .. " Arm"))
+		if not arm then continue end
+		local target = Vector3.new(direction*shell.Size.X*0.38, -shell.Size.Y*0.36, shell.Size.Z*0.12)
+		if r15 then
+			local hand = character:FindFirstChild(side .. "Hand")
+			if not hand then continue end
+			local grip = Instance.new("Attachment")
+			grip.Name = side .. "ShellGrip"
+			grip.Position = target
+			grip.Parent = shell
 
-		local grip = Instance.new("Attachment")
-		grip.Name = side .. "ShellGrip"
-		grip.Position = Vector3.new(
-			direction * (shell.Size.X * 0.32 + hand.Size.X * 0.42),
-			-shell.Size.Y * 0.38,
-			-shell.Size.Z * 0.1
-		)
-		grip.Parent = shell
+			local elbow = Instance.new("Attachment")
+			elbow.Name = side .. "CarryElbow"
+			elbow.Position = Vector3.new(direction*(torso.Size.X*0.6+arm.Size.X*0.5), -torso.Size.Y*0.38, -torso.Size.Z*0.42)
+			elbow.Parent = torso
 
-		local elbow = Instance.new("Attachment")
-		elbow.Name = side .. "CarryElbow"
-		elbow.Position = Vector3.new(
-			direction * (torso.Size.X * 0.72 + arm.Size.X * 0.7),
-			torso.Size.Y * 0.2,
-			-torso.Size.Z * 0.72
-		)
-		elbow.Parent = torso
-
-		local carry = Instance.new("IKControl")
-		carry.Name = side .. "EggCarry"
-		carry.Type = Enum.IKControlType.Position
-		carry.ChainRoot = arm
-		carry.EndEffector = hand
-		carry.Target = grip
-		carry.Pole = elbow
-		carry.SmoothTime = 0.055
-		carry.Priority = 10
-		carry.Parent = humanoid
-		table.insert(poseObjects, carry)
-		table.insert(poseObjects, elbow)
+			local carry = Instance.new("IKControl")
+			carry.Name = side .. "EggCarry"
+			carry.Type = Enum.IKControlType.Position
+			carry.ChainRoot = arm
+			carry.EndEffector = hand
+			carry.EndEffectorOffset = CFrame.new(0,-hand.Size.Y*0.36,0)
+			carry.Target = grip
+			carry.Pole = elbow
+			carry.SmoothTime = 0.04
+			carry.Priority = 10
+			carry.Parent = humanoid
+			table.insert(poseObjects, carry)
+			table.insert(poseObjects, elbow)
+		else
+			local shoulder = torso:FindFirstChild(side .. " Shoulder")
+			if not shoulder or not shoulder:IsA("Motor6D") or not shoulder.Enabled then continue end
+			local wrist = offset:PointToWorldSpace(target)
+			local up = (shoulder.C0.Position-wrist).Unit
+			local back = Vector3.xAxis:Cross(up).Unit
+			local right = up:Cross(back)
+			local brace = Instance.new("Weld")
+			brace.Name = side .. "EggCarry"
+			brace.Part0, brace.Part1 = torso, arm
+			brace.C0 = CFrame.fromMatrix(wrist+up*arm.Size.Y*0.48,right,up,back)
+			shoulder.Enabled = false
+			brace.Parent = shell
+			table.insert(shoulders,shoulder)
+			table.insert(poseObjects,brace)
+		end
 	end
-	-- The targets go with the shell. Detach controls from the avatar when it breaks or is swapped.
-	egg.Destroying:Once(function()
+	activePoses[egg] = function()
 		for _, object in poseObjects do object:Destroy() end
-	end)
+		for _, shoulder in shoulders do
+			if shoulder.Parent then shoulder.Enabled = true end
+		end
+	end
+	egg.Destroying:Once(function() releasePose(egg) end)
 end
 
 function Eggs.attach(player, data, hp)
@@ -1347,26 +1495,33 @@ function Eggs.attach(player, data, hp)
 	local head = character and character:FindFirstChild("Head")
 	if not head then return end
 	local existing = character:FindFirstChild("CourierEgg")
-	if existing then existing:Destroy() end
-	if hp &lt;= 0 then return end
-	local egg = EggModel.build(data.skin, head.Size.X * 1.5, false)
-	local offset = CFrame.new(0,head.Size.Y/2+egg.PrimaryPart.Size.Y/2+0.34,0)
-	egg:PivotTo(head.CFrame * offset)
+	if existing then
+		releasePose(existing)
+		existing:Destroy()
+	end
+	if hp <= 0 then return end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+	if not humanoid or not torso then return end
+	local egg = EggModel.build(data.skin, math.clamp(torso.Size.X*0.72,0.65,2.6), false)
+	local shell = egg.PrimaryPart
+	local offset = CFrame.new(0,-torso.Size.Y*0.22,-(torso.Size.Z+shell.Size.Z)*0.5-0.12)
+	egg:PivotTo(torso.CFrame * offset)
 	egg.Parent = character
 	local motor = Instance.new("Motor6D")
 	motor.Name = "EggMotor"
-	motor.Part0 = head
+	motor.Part0 = torso
 	motor.Part1 = egg.PrimaryPart
 	motor.C0 = offset
 	motor.Parent = egg.PrimaryPart
-	poseArms(character,egg)
+	poseArms(character,humanoid,torso,egg,offset)
 	EggModel.condition(egg,hp)
 	local previous = head:FindFirstChild("CourierTitle")
 	if previous then previous:Destroy() end
 	local nameplate = Instance.new("BillboardGui",head)
 	nameplate.Name = "CourierTitle"
 	nameplate.Size = UDim2.fromScale(6,0.8)
-	nameplate.StudsOffset = Vector3.new(0,head.Size.Y+3,0)
+	nameplate.StudsOffset = Vector3.new(0,head.Size.Y+0.85,0)
 	nameplate.MaxDistance = 36
 	local title = Instance.new("TextLabel",nameplate)
 	title.Size = UDim2.fromScale(1,1)
@@ -1423,18 +1578,19 @@ function Eggs.condition(player, hp)
 			fragment.AssemblyAngularVelocity = Vector3.new(i,3,1)
 			Debris:AddItem(fragment,0.7)
 		end
+		releasePose(egg)
 		egg:Destroy()
 	end
 end
 return Eggs
-</string>
+]]></string>
         </Properties>
       </Item>
       <Item class="Script" referent="12">
         <Properties>
           <string name="Name">Main</string>
           <token name="RunContext">0</token>
-          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+          <string name="Source">local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local Run = game:GetService("RunService")
 local Physics = game:GetService("PhysicsService")
@@ -1517,7 +1673,7 @@ local function state(player)
 		room=contenders[player] == true, tournament=tournament, duel=duel, heat=heat, heats=Rules.heatCount,
 		draftStarted=draftStarted, maps=mapPlan, victor=victor,
 		queuedCount=queuedCount(), capacity=Config.maxPlayers,
-		roundName=if duel then "Final duel" elseif heat > 0 then "Heat " .. heat elseif tournament then "Map draw" else nil,
+		roundName=if duel then "Final duel" elseif heat &gt; 0 then "Heat " .. heat elseif tournament then "Map draw" else nil,
 	})
 end
 
@@ -1575,8 +1731,8 @@ end
 
 local function damage(player,r,amount,source)
 	local at = now(workspace)
-	if stage ~= "Race" or r.finished or r.recovering or (source ~= "fall" and at < r.immune) then return false end
-	if source == r.lastHazard and at-r.lastHit < 1.3 then return false end
+	if stage ~= "Race" or r.finished or r.recovering or (source ~= "fall" and at &lt; r.immune) then return false end
+	if source == r.lastHazard and at-r.lastHit &lt; 1.3 then return false end
 	r.lastHazard,r.lastHit,r.immune = source,at,at+Config.protection
 	r.hp = math.max(0,r.hp-amount)
 	Eggs.condition(player,r.hp)
@@ -1584,7 +1740,7 @@ local function damage(player,r,amount,source)
 	if r.hp == 0 then
 		send(player,"FX","Break")
 		local reason = if source == "fall" then
-			(if r.shovedAt and at-r.shovedAt <= 2 then "Knocked off by " .. r.shovedBy else "Fell off the island")
+			(if r.shovedAt and at-r.shovedAt &lt;= 2 then "Knocked off by " .. r.shovedBy else "Fell off the island")
 			elseif typeof(source) == "Instance" and source:IsA("Player") then "Shoved out by " .. source.DisplayName
 			else "Shell shattered"
 		failedAttempt(player,r,reason,at)
@@ -1597,9 +1753,9 @@ end
 local function zoneFor(root)
 	if not course or not root then return nil end
 	local p = root.Position
-	if p.Y < 0.8 or p.Y > 10 then return nil end
+	if p.Y &lt; 0.8 or p.Y &gt; 10 then return nil end
 	for i, zone in course.zones do
-		if math.abs(p.Z-zone.z) <= zone.extent and math.abs(p.X-(zone.x or course.x)) <= (zone.width or 11.5) then return i end
+		if math.abs(p.Z-zone.z) &lt;= zone.extent and math.abs(p.X-(zone.x or course.x)) &lt;= (zone.width or 11.5) then return i end
 	end
 	return nil
 end
@@ -1607,17 +1763,17 @@ end
 local function shove(player)
 	local r, root = racers[player],rootOf(player)
 	local at = now(workspace)
-	if stage ~= "Race" or (practiceMode or entrants < 2) or not r or r.finished or r.recovering or not root or root.Anchored or at < r.cooldown or at < r.immune then return end
+	if stage ~= "Race" or (practiceMode or entrants &lt; 2) or not r or r.finished or r.recovering or not root or root.Anchored or at &lt; r.cooldown or at &lt; r.immune then return end
 	local zone = zoneFor(root)
 	if not zone then return end
 	local closest, target, gap
 	for other, rival in racers do
-		if other == player or rival.finished or rival.recovering or at < rival.immune then continue end
+		if other == player or rival.finished or rival.recovering or at &lt; rival.immune then continue end
 		local otherRoot = rootOf(other)
 		if not otherRoot or otherRoot.Anchored or zoneFor(otherRoot) ~= zone then continue end
 		local delta = otherRoot.Position-root.Position
 		local distance = delta.Magnitude
-		if distance <= Config.shoveRange and (distance < 0.1 or root.CFrame.LookVector:Dot(delta.Unit) > 0.12) and (not gap or distance<gap) then
+		if distance &lt;= Config.shoveRange and (distance &lt; 0.1 or root.CFrame.LookVector:Dot(delta.Unit) &gt; 0.12) and (not gap or distance&lt;gap) then
 			closest,target,gap = other,otherRoot,distance
 		end
 	end
@@ -1628,7 +1784,7 @@ local function shove(player)
 		rival.shovedBy, rival.shovedAt = player.DisplayName, at
 		local offset = target.Position-root.Position
 		local flat = Vector3.new(offset.X,0,offset.Z)
-		if flat.Magnitude > 0.1 then
+		if flat.Magnitude &gt; 0.1 then
 			local canSet = target:CanSetNetworkOwnership()
 			if canSet then
 				target:SetNetworkOwner(nil)
@@ -1691,7 +1847,7 @@ local function action(player, key, id)
 		return
 	elseif key == "choose" then
 		local n = tonumber(id)
-		if n and n % 1 == 0 and Levels[n] and n <= d.unlocked then
+		if n and n % 1 == 0 and Levels[n] and n &lt;= d.unlocked then
 			selected[player] = n
 		end
 	elseif key == "box" then
@@ -1715,7 +1871,7 @@ local function action(player, key, id)
 		local product = CoinPacks.prompt(player,id)
 		if product then send(player,"Product",product)
 		else send(player,"Notice","This coin pack is unavailable") end
-	elseif key == "aura" and d.wins > 0 then
+	elseif key == "aura" and d.wins &gt; 0 then
 		player:SetAttribute("WinnerAura",player:GetAttribute("WinnerAura") == false)
 		Eggs.aura(player,d)
 	elseif key == "Shop" or key == "Courses" then
@@ -1730,13 +1886,13 @@ for _, instance in workspace:GetChildren() do
 end
 
 remote.OnServerEvent:Connect(function(player,key,id)
-	if typeof(key) ~= "string" or #key > 12 or (id ~= nil and (typeof(id) ~= "string" or #id > 32)) then return end
+	if typeof(key) ~= "string" or #key &gt; 12 or (id ~= nil and (typeof(id) ~= "string" or #id &gt; 32)) then return end
 	if (key == "skin" or key == "title" or key == "trail" or key == "choose" or key == "coins" or key == "box") and id == nil then return end
 	local clock = os.clock()
 	local limits = rate[player] or {}
 	rate[player] = limits
 	local bucket = if key == "shove" then "shove" else "menu"
-	if limits[bucket] and clock < limits[bucket] then return end
+	if limits[bucket] and clock &lt; limits[bucket] then return end
 	limits[bucket] = clock + 0.18
 	action(player,key,id)
 end)
@@ -1809,7 +1965,7 @@ game:BindToClose(function()
 		end)
 	end
 	local untilTime = os.clock()+24
-	while pending > 0 and os.clock() < untilTime do task.wait(0.1) end
+	while pending &gt; 0 and os.clock() &lt; untilTime do task.wait(0.1) end
 end)
 
 local function finishBurst(root)
@@ -1900,7 +2056,7 @@ Run.Heartbeat:Connect(function(dt)
 	tickAccumulator += dt
 	hudAccumulator += dt
 	boardAccumulator += dt
-	if tickAccumulator < 1/30 then return end
+	if tickAccumulator &lt; 1/30 then return end
 	tickAccumulator %= 1/30
 	local at = now(workspace)
 	if stage == "Race" and course then
@@ -1909,16 +2065,16 @@ Run.Heartbeat:Connect(function(dt)
 			if r.finished then continue end
 			local root = rootOf(player)
 			local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-			if humanoid and humanoid.Health <= 0 and not r.recovering then
+			if humanoid and humanoid.Health &lt;= 0 and not r.recovering then
 				failedAttempt(player,r,"Character reset",at)
 			end
-			if r.finished or not root or not humanoid or humanoid.Health <= 0 then continue end
+			if r.finished or not root or not humanoid or humanoid.Health &lt;= 0 then continue end
 			if r.recovering then
-				if at >= r.penaltyUntil then restartPractice(player,r,at) end
+				if at &gt;= r.penaltyUntil then restartPractice(player,r,at) end
 				continue
 			end
 			local p = root.Position
-			if p.Y < (course.fallY or -8.3) then
+			if p.Y &lt; (course.fallY or -8.3) then
 				damage(player,r,3,"fall")
 				continue
 			end
@@ -1927,14 +2083,14 @@ Run.Heartbeat:Connect(function(dt)
 			r.previous,r.lastSample=p,at
 			-- Discard implausible jumps, then validate course travel in route order.
 			local speedAge = at-(r.speedAt or at)
-			local sustained = speedAge >= 0.8 and (p.Z-r.speedOrigin.Z) > 14 + speedAge*27
-			if (p-previous).Magnitude > math.max(14,(at-previousTime)*60) or sustained then
+			local sustained = speedAge &gt;= 0.8 and (p.Z-r.speedOrigin.Z) &gt; 14 + speedAge*27
+			if (p-previous).Magnitude &gt; math.max(14,(at-previousTime)*60) or sustained then
 				local back = if sustained then r.speedOrigin else previous
 				move(player,back,false)
 				r.previous,r.speedOrigin,r.speedAt=back,back,at
 				continue
 			end
-			if not r.speedAt or speedAge >= 0.8 then r.speedOrigin,r.speedAt=p,at end
+			if not r.speedAt or speedAge &gt;= 0.8 then r.speedOrigin,r.speedAt=p,at end
 			local gate = course.route[r.routeIndex]
 			if gate then
 				if Rules.crossing(previous,p,gate.z,gate.x,gate.width,gate.minY,gate.maxY) then
@@ -1943,17 +2099,17 @@ Run.Heartbeat:Connect(function(dt)
 				end
 			else
 				local fraction = Rules.crossing(previous,p,course.finish,course.x,15.8,0.5,12.5)
-				if fraction and r.hp > 0 then
+				if fraction and r.hp &gt; 0 then
 					local arrival = previousTime + (at-previousTime)*fraction
-					if arrival <= ends then table.insert(candidates,{player=player,r=r,arrival=arrival}) end
+					if arrival &lt;= ends then table.insert(candidates,{player=player,r=r,arrival=arrival}) end
 				end
 			end
 			r.progress = math.clamp(p.Z,course.z,gate and gate.z or course.finish)
 			r.zone = zoneFor(root)
 		end
 		table.sort(candidates,function(a,b)
-			if a.arrival == b.arrival then return a.player.UserId < b.player.UserId end
-			return a.arrival < b.arrival
+			if a.arrival == b.arrival then return a.player.UserId &lt; b.player.UserId end
+			return a.arrival &lt; b.arrival
 		end)
 		for _, entry in candidates do
 			if resultCount == slots then break end
@@ -1967,15 +2123,15 @@ Run.Heartbeat:Connect(function(dt)
 			Obstacles.update(course,at-started,racers,damage)
 			checkDuel()
 		end
-		if hudAccumulator >= 0.2 then
+		if hudAccumulator &gt;= 0.2 then
 			hudAccumulator = 0
 			local ranked = {}
 			for player,r in racers do
 				if not r.finished then table.insert(ranked,{player=player,r=r}) end
 			end
 			table.sort(ranked,function(a,b)
-				if a.r.progress ~= b.r.progress then return a.r.progress>b.r.progress end
-				return a.player.UserId < b.player.UserId
+				if a.r.progress ~= b.r.progress then return a.r.progress&gt;b.r.progress end
+				return a.player.UserId &lt; b.player.UserId
 			end)
 			for place, entry in ranked do
 				local r=entry.r
@@ -1990,13 +2146,13 @@ Run.Heartbeat:Connect(function(dt)
 		Obstacles.update(course,0,{},damage)
 	end
 	Obstacles.update(demo,at % 10000,{},damage)
-	if boardAccumulator >= 3 then
+	if boardAccumulator &gt;= 3 then
 		boardAccumulator = 0
 		local board = {}
 		for player, session in Data.sessions do
 			if player.Parent == Players then table.insert(board,{name=player.DisplayName,wins=session.data.wins}) end
 		end
-		table.sort(board,function(a,b) return a.wins>b.wins end)
+		table.sort(board,function(a,b) return a.wins&gt;b.wins end)
 		local lines={"SERVER LEADERS"}
 		for i=1,math.min(3,#board) do table.insert(lines,("%d   %s   /   %d wins"):format(i,board[i].name,board[i].wins)) end
 		leaderboard.Text=table.concat(lines,"\n")
@@ -2007,7 +2163,7 @@ Run.Heartbeat:Connect(function(dt)
 end)
 
 local function waitPhase()
-	while now(workspace) < deadline do task.wait(0.1) end
+	while now(workspace) &lt; deadline do task.wait(0.1) end
 end
 
 local function ready(list)
@@ -2015,9 +2171,9 @@ local function ready(list)
 	for player in list do
 		local root = rootOf(player)
 		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-		if Data.get(player) and not shopping[player] and root and hum and hum.Health > 0 then table.insert(found,player) end
+		if Data.get(player) and not shopping[player] and root and hum and hum.Health &gt; 0 then table.insert(found,player) end
 	end
-	table.sort(found,function(a,b) return a.UserId < b.UserId end)
+	table.sort(found,function(a,b) return a.UserId &lt; b.UserId end)
 	return found
 end
 
@@ -2028,7 +2184,7 @@ local function qualifiedPlayers()
 			table.insert(advancing,{player=player,place=r.result.place})
 		end
 	end
-	table.sort(advancing,function(a,b) return a.place < b.place end)
+	table.sort(advancing,function(a,b) return a.place &lt; b.place end)
 	local players = {}
 	for _, entry in advancing do table.insert(players,entry.player) end
 	return players
@@ -2040,7 +2196,7 @@ local function settleDuel()
 	local tied = false
 	for player,r in racers do
 		if r.finished then continue end
-		if not best or r.progress > best.progress or (r.progress == best.progress and r.hp > best.hp) then
+		if not best or r.progress &gt; best.progress or (r.progress == best.progress and r.hp &gt; best.hp) then
 			leader,best,tied = player,r,false
 		elseif r.progress == best.progress and r.hp == best.hp then
 			tied = true
@@ -2089,7 +2245,7 @@ local function runHeat(group,map,slotCount,final)
 	slots = math.min(slots,live)
 	finishDisplay()
 	phase("Race",Levels[level].time)
-	while now(workspace) < ends do
+	while now(workspace) &lt; ends do
 		local active = false
 		for _,r in racers do if not r.finished then active=true; break end end
 		if not active then break end
@@ -2101,7 +2257,7 @@ local function runHeat(group,map,slotCount,final)
 	end
 	local advancing = qualifiedPlayers()
 	if #advancing == 1 then crown(advancing[1],racers[advancing[1]],"Only qualifier left") end
-	local continuing = #advancing > 1 and not victor
+	local continuing = #advancing &gt; 1 and not victor
 	phase("Results",if continuing then Config.heatResults else Config.results)
 	waitPhase()
 	advancing = qualifiedPlayers()
@@ -2111,7 +2267,7 @@ local function runHeat(group,map,slotCount,final)
 		waitPhase()
 	end
 	if victor then advancing = {} end
-	if #advancing < 2 then phase("Returning",0.5) end
+	if #advancing &lt; 2 then phase("Returning",0.5) end
 	for player in racers do
 		move(player,lobby,false)
 		local data = Data.get(player)
@@ -2141,7 +2297,7 @@ local function runTournament(group)
 		if contenders[player] then table.insert(available,player) end
 	end
 	group = available
-	if #group < 2 then
+	if #group &lt; 2 then
 		tournament = false
 		table.clear(contenders)
 		local player = group[1]
@@ -2151,7 +2307,7 @@ local function runTournament(group)
 	for index,map in mapPlan do
 		heat = index
 		group = runHeat(group,map,Rules.slots(starting,index,#group),false)
-		if #group < 2 then return end
+		if #group &lt; 2 then return end
 	end
 	heat = Rules.heatCount+1
 	runHeat(group,mapPlan[Rules.heatCount],1,true)
@@ -2168,10 +2324,10 @@ task.spawn(function()
 		local group
 		if next(queue) then
 			phase("Intermission",Config.intermission)
-			while now(workspace) < deadline and queuedCount() < Config.maxPlayers and next(queue) do task.wait(0.12) end
+			while now(workspace) &lt; deadline and queuedCount() &lt; Config.maxPlayers and next(queue) do task.wait(0.12) end
 			group = ready(queue)
 			for i=#group,Config.maxPlayers+1,-1 do group[i]=nil end
-			if #group >= 2 then
+			if #group &gt;= 2 then
 				runTournament(group)
 			elseif #group == 1 then
 				runHeat(group,selected[group[1]] or 1,1,false)
@@ -2186,13 +2342,13 @@ task.spawn(function()
 		end
 	end
 end)
-]]></string>
+</string>
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="13">
         <Properties>
           <string name="Name">Obstacles</string>
-          <string name="Source">local O = {}
+          <string name="Source"><![CDATA[local O = {}
 local palette = {Color3.fromHex("ff536c"), Color3.fromHex("ffb632"), Color3.fromHex("965bff")}
 local tileSafe = Color3.fromHex("9beecb")
 local tileWarning = Color3.fromHex("ff9160")
@@ -2240,16 +2396,16 @@ local definitions = {
 }
 O.definitions = definitions
 
-local function hitsRacer(localPos, half, shape)
+local function hitsRacer(localPos, half, shape, bodyHalf)
 	if shape == Enum.PartType.Ball then
-		local x = math.max(0,math.abs(localPos.X)-0.74)
-		local y = math.max(0,math.abs(localPos.Y)-1.65)
-		local z = math.max(0,math.abs(localPos.Z)-0.74)
-		return x*x+y*y+z*z &lt; half.X*half.X
+		local x = math.max(0,math.abs(localPos.X)-0.55)
+		local y = math.max(0,math.abs(localPos.Y)-bodyHalf)
+		local z = math.max(0,math.abs(localPos.Z)-0.55)
+		return x*x+y*y+z*z < half.X*half.X
 	end
-	return math.abs(localPos.X) &lt; half.X+0.85
-		and math.abs(localPos.Y) &lt; half.Y+1.75
-		and math.abs(localPos.Z) &lt; half.Z+0.85
+	return math.abs(localPos.X) < half.X+0.55
+		and math.abs(localPos.Y) < half.Y+bodyHalf
+		and math.abs(localPos.Z) < half.Z+0.55
 end
 
 local function buildRideable(course, item)
@@ -2307,10 +2463,10 @@ local function overlapsFallingRacer(part, racers)
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if not root then continue end
 		local position = part.CFrame:PointToObjectSpace(root.Position)
-		if math.abs(position.X) &gt; half.X+0.8 or math.abs(position.Z) &gt; half.Z+0.8 then continue end
+		if math.abs(position.X) > half.X+0.8 or math.abs(position.Z) > half.Z+0.8 then continue end
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		local standingHeight = humanoid and humanoid.HipHeight+root.Size.Y/2 or 3
-		if position.Y &gt; -half.Y-2.8 and position.Y &lt; half.Y+standingHeight-0.15 then
+		if position.Y > -half.Y-2.8 and position.Y < half.Y+standingHeight-0.15 then
 			return true
 		end
 	end
@@ -2329,7 +2485,15 @@ function O.add(course, kind, origin, phase, overrides)
 	if kind == "conveyor" then p.AssemblyLinearVelocity = Vector3.new(0, 0, d.speed) end
 	if kind == "gravity" then p.Transparency = 0.8 end
 	if kind == "pulse" then p.Material = Enum.Material.Neon end
-	if kind == "boulder" then p.Material = Enum.Material.Slate end
+	if kind == "boulder" then
+		p.Material = Enum.Material.Slate
+		local start = cf.Position + Vector3.zAxis*d.range
+		local warning = make(course.model,"Boulder warning",Vector3.new(3,0.08,1.2),
+			CFrame.new(start.X,origin.Y+0.05,start.Z),pulseWarning,false)
+		warning.Material = Enum.Material.Neon
+		warning.CanQuery = false
+		item.warning = warning
+	end
 	if kind == "pendulum" then
 		item.pivot = origin + Vector3.new(0, 16, 0)
 		item.arm = make(course.model, "Foam swing arm", Vector3.one, cf, Color3.fromHex("ffe6a2"), false)
@@ -2365,7 +2529,7 @@ function O.update(course, age, racers, damage)
 		end
 		local active = true
 		if kind == "sweep" then p.CFrame = o.base * CFrame.Angles(0, t, 0)
-		elseif kind == "ball" then p.CFrame = o.base + Vector3.new(s * d.range, math.abs(math.sin(t * 1.6)) * 5.6, 0)
+		elseif kind == "ball" then p.CFrame = o.base + Vector3.new(s * d.range, math.abs(math.sin(t * 1.6)) * (d.bounce or 5.6), 0)
 		elseif kind == "foam" then p.CFrame = o.base + (d.axis or Vector3.xAxis) * (s * d.range)
 		elseif kind == "roller" then p.CFrame = (o.base + Vector3.new(s * d.range, 0, 0)) * CFrame.Angles(t, 0, 0)
 		elseif kind == "snowball" then p.CFrame = o.base + Vector3.new(0, 0, s * d.range)
@@ -2376,16 +2540,16 @@ function O.update(course, age, racers, damage)
 			o.arm.CFrame = CFrame.lookAt((bob + o.pivot) / 2, bob)
 		elseif kind == "vanish" or kind == "collapse" then
 			local cycle = (age + o.phase) % d.period
-			local solid = cycle &lt; d.period - d.open
-			if solid and not p.CanCollide and age &gt;= (o.blockedUntil or 0) and overlapsFallingRacer(p,racers) then
+			local solid = cycle < d.period - d.open
+			if solid and not p.CanCollide and age >= (o.blockedUntil or 0) and overlapsFallingRacer(p,racers) then
 				o.blockedUntil = age+d.period-cycle
 			end
-			local blocked = age &lt; (o.blockedUntil or 0)
+			local blocked = age < (o.blockedUntil or 0)
 			local mode
-			if cycle &gt;= d.period-0.48 then mode = "returning"
+			if cycle >= d.period-0.48 then mode = "returning"
 			elseif blocked then mode = "out"
 			elseif not solid then mode = "out"
-			elseif cycle &gt; d.period-d.open-0.75 then mode = "warning"
+			elseif cycle > d.period-d.open-0.75 then mode = "warning"
 			else mode = "solid" end
 			if o.mode ~= mode then
 				o.mode = mode
@@ -2395,8 +2559,8 @@ function O.update(course, age, racers, damage)
 			end
 		elseif kind == "pulse" then
 			local cycle = (age + o.phase) % d.period
-			active = cycle &gt;= d.period - d.open
-			local mode = if active then "live" elseif cycle &gt;= d.period-d.open-0.72 then "warning" else "safe"
+			active = cycle >= d.period - d.open
+			local mode = if active then "live" elseif cycle >= d.period-d.open-0.95 then "warning" else "safe"
 			if o.mode ~= mode then
 				o.mode = mode
 				p.Color = if mode == "live" then pulseLive elseif mode == "warning" then pulseWarning else d.color or pulseSafe
@@ -2405,10 +2569,12 @@ function O.update(course, age, racers, damage)
 		elseif kind == "boulder" then
 			local cycle = (age + o.phase) % d.period
 			local traveled = math.min(cycle/d.travel,1)
-			active = cycle &lt; d.travel
+			active = cycle < d.travel
 			local position = active and (1-traveled*2)*d.range or d.range
 			p.CFrame = (o.base + Vector3.zAxis*position) * CFrame.Angles(-traveled*8.2,0,0)
-			p.Transparency = if active then 0 elseif cycle &gt;= d.period-0.95 then 0.22 else 1
+			local warning = not active and cycle >= d.period-1.15
+			p.Transparency = if active then 0 elseif warning then 0.65 else 1
+			o.warning.Transparency = if warning then 0 else 1
 		elseif kind == "door" then p.CFrame = o.base + Vector3.new(0, (s + 1) * d.range / 2, 0)
 		end
 		if not active then continue end
@@ -2416,18 +2582,29 @@ function O.update(course, age, racers, damage)
 		for player, racer in racers do
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			if not root or root.Anchored or racer.finished or racer.out or racer.recovering then continue end
-			local probeOffset = if kind == "pulse" then 2.1 elseif kind == "sweep" or kind == "roller" then 1 else 0
-			local probe = root.Position-Vector3.yAxis * probeOffset
-			local localPos = p.CFrame:PointToObjectSpace(probe)
+			local localPos = p.CFrame:PointToObjectSpace(root.Position)
 			local half = p.Size * 0.5
 			if d.damage then
-				if hitsRacer(localPos,half,d.shape) then
-					damage(player, racer, d.damage, p)
+				local hit
+				if kind == "pulse" or kind == "sweep" or kind == "roller" then
+					local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+					local standHeight = root.Size.Y*0.5 + (humanoid and humanoid.HipHeight or 0)
+					if humanoid and humanoid.RigType == Enum.HumanoidRigType.R6 then
+						local leg = player.Character:FindFirstChild("Left Leg")
+						standHeight += leg and leg.Size.Y or 2
+					end
+					local feet = root.Position.Y-standHeight
+					hit = feet < p.Position.Y + (kind == "roller" and half.Z or half.Y) + 0.18
+						and math.abs(localPos.X) < half.X + 0.5
+						and math.abs(kind == "roller" and (root.Position.Z-p.Position.Z) or localPos.Z) < half.Z + 0.46
+				else
+					hit = hitsRacer(localPos,half,d.shape,math.max(0.9,root.Size.Y*0.67))
 				end
-			elseif math.abs(localPos.X) &lt;= half.X and math.abs(localPos.Z) &lt;= half.Z then
-				if kind == "launch" and localPos.Y &gt; 0 and localPos.Y &lt; 3.4 and root.AssemblyLinearVelocity.Y &lt;= 1 then
+				if hit then damage(player, racer, d.damage, p) end
+			elseif math.abs(localPos.X) <= half.X and math.abs(localPos.Z) <= half.Z then
+				if kind == "launch" and localPos.Y > 0 and localPos.Y < 3.4 and root.AssemblyLinearVelocity.Y <= 1 then
 					root.AssemblyLinearVelocity += Vector3.new(0, d.speed, 0)
-				elseif kind == "gravity" and math.abs(localPos.Y) &lt; half.Y then
+				elseif kind == "gravity" and math.abs(localPos.Y) < half.Y then
 					local force = root:FindFirstChild("CourseLift")
 					if not force then
 						local attachment = Instance.new("Attachment", root)
@@ -2456,13 +2633,13 @@ function O.cleanup(course)
 	end
 end
 return O
-</string>
+]]></string>
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="14">
         <Properties>
           <string name="Name">Shop</string>
-          <string name="Source"><![CDATA[local Marketplace = game:GetService("MarketplaceService")
+          <string name="Source">local Marketplace = game:GetService("MarketplaceService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("EggShared")
 local Config = require(Shared.Config)
 local Data = require(script.Parent.Data)
@@ -2498,7 +2675,7 @@ end
 
 function Shop.refresh(player)
 	for id, pass in Config.passes do
-		if pass > 0 then owns(player,id,pass) end
+		if pass &gt; 0 then owns(player,id,pass) end
 	end
 end
 
@@ -2506,7 +2683,7 @@ function Shop.listen(changed)
 	Marketplace.PromptGamePassPurchaseFinished:Connect(function(player, pass, purchased)
 		if not purchased then return end
 		for id, configured in Config.passes do
-			if configured > 0 and configured == pass then
+			if configured &gt; 0 and configured == pass then
 				-- This event is supplied by MarketplaceService on the server.
 				grant(player,id)
 				changed(player)
@@ -2526,7 +2703,7 @@ function Shop.select(player,kind,id)
 			local box = Config.boxBySkin[id]
 			if box then return "Earn this shell in the " .. box.name end
 			local pass = Config.passes[id]
-			if not pass or pass <= 0 then return "Currently unavailable" end
+			if not pass or pass &lt;= 0 then return "Currently unavailable" end
 			local ok, owned = owns(player,id,pass)
 			if not ok then return "Marketplace unavailable" end
 			if not owned then return "Review the price in Roblox", pass end
@@ -2535,14 +2712,14 @@ function Shop.select(player,kind,id)
 	elseif kind == "trail" then
 		if id ~= "" and not data.trails[id] then
 			local price = Config.trails[id]
-			if not price or data.coins < price then return "Trail unavailable or insufficient coins" end
+			if not price or data.coins &lt; price then return "Trail unavailable or insufficient coins" end
 			data.coins -= price
 			data.trails[id] = true
 		end
 		data.trail = id
 	elseif kind == "title" then
 		local number = tonumber(id)
-		if not number or number % 1 ~= 0 or number > 4 or not Config.titleXP[number] or data.xp < Config.titleXP[number] then
+		if not number or number % 1 ~= 0 or number &gt; 4 or not Config.titleXP[number] or data.xp &lt; Config.titleXP[number] then
 			return "Title locked"
 		end
 		data.title = number
@@ -2551,7 +2728,7 @@ function Shop.select(player,kind,id)
 	return "Equipped"
 end
 return Shop
-]]></string>
+</string>
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="15">
@@ -2604,7 +2781,7 @@ local function sign(parent, name, position, size, caption, fill, ink, font, face
 	label.BackgroundTransparency = 1
 	label.Position = UDim2.fromScale(0.055,0.10)
 	label.Size = UDim2.fromScale(0.89,0.8)
-	label.Font = font or Enum.Font.Oswald
+	label.Font = font or Enum.Font.FredokaOne
 	label.Text = caption
 	label.TextColor3 = ink
 	label.TextScaled = true
@@ -3020,9 +3197,9 @@ local remote = Shared:WaitForChild("CourierEvent")
 local player = Players.LocalPlayer
 
 local rgb = Color3.fromHex
-local ink, charcoal, muted = rgb("20281f"), rgb("374138"), rgb("596451")
-local paper, cream = rgb("fff5d8"), rgb("ebe1c4")
-local yellow, lime, rust = rgb("ffc639"), rgb("d3f480"), rgb("ff7657")
+local ink, charcoal, muted = rgb("272054"), rgb("493b79"), rgb("5e5078")
+local paper, cream = rgb("fff9ff"), rgb("ede3ff")
+local yellow, lime, rust = rgb("ffcf4b"), rgb("a8f4bd"), rgb("ff8eb5")
 local winnerRed = rgb("fa5451")
 local worlds = {
 	["Green Meadows"] = {color = rgb("b5e887"), hazards = "Rolling balls, spinners and rafts"},
@@ -3032,8 +3209,8 @@ local worlds = {
 	["Sunken Ruins"] = {color = rgb("8fe6cb"), hazards = "Rope crossings and relic chases"},
 }
 local typeface = Enum.Font.GothamMedium
-local heavy = Enum.Font.GothamBlack
-local digits = Enum.Font.Code
+local heavy = Enum.Font.FredokaOne
+local digits = Enum.Font.GothamBold
 local state = {stage = "Lobby", selected = 1, level = 1, deadline = 0}
 local race = {hp = 3, place = 1, total = 1, progress = 0, cooldown = 0, recover = 0}
 local profile = {skins = {Classic = true}, skin = "Classic", trails = {}, records = {}, title = 1, deliveries = 0}
@@ -3072,7 +3249,7 @@ local function frame(parent, color, size, position, radius)
 	if color then instance.BackgroundColor3 = color end
 	instance.Size = size
 	instance.Position = position or UDim2.new()
-	if radius then corner(instance, radius) end
+	if radius then corner(instance, math.min(radius + 3, 18)) end
 	instance.Parent = parent
 	return instance
 end
@@ -3105,15 +3282,28 @@ local function button(parent, text, color, textColor, callback)
 	instance.Text = text
 	instance.TextTruncate = Enum.TextTruncate.AtEnd
 	instance.TextSize = 13
-	instance.Font = Enum.Font.GothamBold
+	instance.Font = heavy
 	instance.Size = UDim2.new(1, 0, 0, 36)
-	corner(instance, 5)
+	corner(instance, 11)
+	outline(instance, ink, 1.5)
+	local gloss = Instance.new("UIGradient")
+	gloss.Rotation = 90
+	gloss.Color = ColorSequence.new(Color3.new(1,1,1),Color3.fromRGB(206,198,229))
+	gloss.Parent = instance
 	instance.Parent = parent
 	instance.Activated:Connect(function()
 		Audio.play("Click")
 		callback()
 	end)
 	return instance
+end
+
+local function bubblePanel(panel)
+	outline(panel, rgb("241b50"), 2.5)
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 90
+	gradient.Color = ColorSequence.new(Color3.new(1,1,1),rgb("e7d9ff"))
+	gradient.Parent = panel
 end
 
 local function limit(parent, x, y)
@@ -3160,6 +3350,7 @@ tint.BackgroundTransparency = 1
 local hud = frame(root, ink, UDim2.new(1, -30, 0, 86), UDim2.new(0.5, 0, 0, 8), 7)
 hud.AnchorPoint = Vector2.new(0.5, 0)
 limit(hud, 340, 86)
+bubblePanel(hud)
 local raceHeat = left(label(hud, "", yellow, UDim2.new(1, -94, 0, 16), UDim2.fromOffset(12, 6), 11, digits))
 local courseName = left(label(hud, "", paper, UDim2.new(1, -80, 0, 25), UDim2.fromOffset(12, 22), 15, heavy))
 local position = left(label(hud, "", paper, UDim2.fromOffset(34, 19), UDim2.fromOffset(12, 50), 12, heavy))
@@ -3186,6 +3377,7 @@ local coinCount = left(label(wallet, "0", ink, UDim2.fromOffset(60, 25), UDim2.f
 local dock = frame(root, ink, UDim2.new(1, -24, 0, 52), UDim2.new(0.5, 0, 1, -14), 7)
 dock.AnchorPoint = Vector2.new(0.5, 1)
 limit(dock, 448, 52)
+bubblePanel(dock)
 local dockInterior = frame(dock, nil, UDim2.new(1, -12, 1, -12), UDim2.fromOffset(6, 6))
 local play = button(dockInterior, "QUEUE", yellow, ink, function()
 	fire((state.queued or state.practiceQueued) and "lobby" or "queue")
@@ -3241,7 +3433,7 @@ draft.Visible = false
 limit(draft, 400, 233)
 local draftScale = Instance.new("UIScale")
 draftScale.Parent = draft
-outline(draft, paper, 1.5)
+bubblePanel(draft)
 frame(draft, yellow, UDim2.new(1, 0, 0, 4), nil, 2)
 left(label(draft, "MAP DRAW", yellow, UDim2.new(1, -120, 0, 24), UDim2.fromOffset(12, 10), 18, heavy))
 local draftCounter = label(draft, "", paper, UDim2.fromOffset(71, 24), UDim2.new(1, -82, 0, 11), 13, digits)
@@ -3339,14 +3531,15 @@ local modal = frame(root, nil, UDim2.fromScale(1, 1))
 modal.ZIndex = 10
 modal.Visible = false
 local shade = frame(modal, ink, UDim2.fromScale(1, 1))
-shade.BackgroundTransparency = 0.56
+shade.BackgroundTransparency = 0.31
 shade.Active = true
 local panel = frame(modal, paper, UDim2.new(1, -26, 0, 240), UDim2.fromScale(0.5, 0.5), 7)
 panel.AnchorPoint = Vector2.new(0.5, 0.5)
 limit(panel, 500, 620)
-outline(panel, ink, 2)
-local panelStripe = frame(panel, yellow, UDim2.new(1, 0, 0, 5), nil, 2)
-local panelTitle = left(label(panel, "", ink, UDim2.new(1, -72, 0, 47), UDim2.fromOffset(15, 5), 23, heavy))
+bubblePanel(panel)
+local panelStripe = frame(panel, yellow, UDim2.new(1, -16, 0, 43), UDim2.fromOffset(8, 7), 11)
+outline(panelStripe, ink, 1.5)
+local panelTitle = left(label(panel, "", ink, UDim2.new(1, -72, 0, 47), UDim2.fromOffset(20, 5), 25, heavy))
 local close = button(panel, "✕", cream, ink, function() setTab(nil) end)
 close.Size = UDim2.fromOffset(32, 31)
 close.Position = UDim2.new(1, -44, 0, 13)
@@ -3402,34 +3595,36 @@ local function showCourses()
 		if island ~= previousIsland then
 			worldNumber += 1
 			local header = append(frame(list, theme.color, UDim2.new(1, -8, 0, 65), nil, 7))
-			left(label(header, ("WORLD %d"):format(worldNumber), ink, UDim2.new(1, -24, 0, 14), UDim2.fromOffset(12, 5), 10, digits))
+			left(label(header, ("ISLAND %d"):format(worldNumber), ink, UDim2.new(1, -24, 0, 14), UDim2.fromOffset(12, 5), 10, digits))
 			left(label(header, island, ink, UDim2.new(1, -24, 0, 23), UDim2.fromOffset(12, 19), 19, heavy))
 			left(label(header, theme.hazards, ink, UDim2.new(1, -24, 0, 16), UDim2.fromOffset(12, 43), 11))
 			previousIsland = island
 		end
 		local available = index <= unlocked
 		local selected = index == state.selected
-		local card = append(frame(list, selected and theme.color or cream, UDim2.new(1, -8, 0, 85), nil, 6))
+		local card = append(frame(list, selected and theme.color or cream, UDim2.new(1, -8, 0, 100), nil, 9))
+		outline(card, ink, selected and 2 or 1)
 		local title = ("%02d  %s"):format(index, course.name)
-		left(label(card, title, ink, UDim2.new(1, -18, 0, 25), UDim2.fromOffset(9, 7), 13, heavy))
+		left(label(card, title, ink, UDim2.new(1, -18, 0, 25), UDim2.fromOffset(9, 5), 16, heavy))
+		left(label(card, course.hook, muted, UDim2.new(1, -18, 0, 19), UDim2.fromOffset(9, 28), 11))
 		local best = profile.records[Rules.recordKey(index)]
 		local detail = string.upper(course.rating)
 		if best then detail ..= ("  ·  PB %.2fs"):format(best) end
-		left(label(card, detail, ink, UDim2.new(1, -168, 0, 16), UDim2.fromOffset(9, 48), 10, digits))
+		left(label(card, detail, ink, UDim2.new(1, -168, 0, 16), UDim2.fromOffset(9, 63), 10, digits))
 		if available and not selected then
 			local pick = button(card, "PICK", paper, ink, function() fire("choose", tostring(index)) end)
 			pick.Size = UDim2.fromOffset(66, 42)
-			pick.Position = UDim2.new(1, -148, 0, 35)
+			pick.Position = UDim2.new(1, -148, 0, 50)
 			pick.TextSize = 11
 		else
-			label(card, selected and "PICKED" or "LOCKED", ink, UDim2.fromOffset(66, 42), UDim2.new(1, -148, 0, 35), 10, heavy)
+			label(card, selected and "PICKED" or "LOCKED", ink, UDim2.fromOffset(66, 42), UDim2.new(1, -148, 0, 50), 10, heavy)
 		end
 		local practice = button(card, "PRACTICE", ink, paper, function()
 			fire("practice", tostring(index))
 			setTab(nil)
 		end)
 		practice.Size = UDim2.fromOffset(70, 42)
-		practice.Position = UDim2.new(1, -76, 0, 35)
+		practice.Position = UDim2.new(1, -76, 0, 50)
 		practice.TextSize = 10
 	end
 end
@@ -3495,7 +3690,7 @@ local function showEggs()
 		left(label(card, message, lime, UDim2.new(0.58, -17, 0, 34), UDim2.new(0.42, 5, 1, -47), 11, heavy))
 	end
 
-	if source then row(source.rarity .. " · " .. source.name, muted, 12, heavy, 22) end
+	if source then row(source.rarity .. " · " .. source.name, muted, 13, heavy, 22) end
 
 	local collected = 0
 	for _, item in ipairs(Config.skins) do
