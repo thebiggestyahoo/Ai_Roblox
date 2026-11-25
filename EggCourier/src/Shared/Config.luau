@@ -23,12 +23,12 @@ C.coinPacks = {
 }
 C.skins = {
 	{"Classic", "Classic Egg", 0, {255, 240, 210}, {255, 185, 120}},
-	{"Chocolate", "Chocolate Egg", 250, {113, 57, 42}, {235, 154, 98}},
-	{"Watermelon", "Watermelon Egg", 500, {65, 184, 92}, {255, 97, 119}},
-	{"Ninja", "Ninja Egg", 750, {42, 46, 72}, {244, 83, 98}},
-	{"Dinosaur", "Dinosaur Egg", 1000, {135, 219, 75}, {40, 123, 98}},
-	{"Frozen", "Frozen Egg", 1500, {147, 225, 255}, {61, 138, 255}},
-	{"Lava", "Lava Egg", 2000, {255, 103, 43}, {62, 34, 81}},
+	{"Chocolate", "Chocolate Egg", false, {113, 57, 42}, {235, 154, 98}},
+	{"Watermelon", "Watermelon Egg", false, {65, 184, 92}, {255, 97, 119}},
+	{"Ninja", "Ninja Egg", false, {42, 46, 72}, {244, 83, 98}},
+	{"Dinosaur", "Dinosaur Egg", false, {135, 219, 75}, {40, 123, 98}},
+	{"Frozen", "Frozen Egg", false, {147, 225, 255}, {61, 138, 255}},
+	{"Lava", "Lava Egg", false, {255, 103, 43}, {62, 34, 81}},
 	{"Cosmic", "Cosmic Champion", false, {141, 75, 226}, {82, 255, 221}},
 	{"Golden", "Golden Egg", false, {255, 196, 54}, {255, 245, 140}},
 	{"Rainbow", "Animated Rainbow Egg", false, {250, 120, 194}, {93, 215, 255}},
@@ -40,6 +40,43 @@ C.suggestedPrices = {Golden = 49, Rainbow = 79, Galaxy = 99, Royal = 149, VIP = 
 C.trails = {Lightning = 600, Rainbow = 900}
 C.titles = {"Rookie Courier", "Egg Protector", "Professional Deliverer", "Egg Master", "Egg Legend"}
 C.titleXP = {0, 100, 300, 650, 1500}
+C.boxes = {
+	{id = "field", name = "Field Box", color = "a8e378", rewards = {
+		{id = "Chocolate", rarity = "Common", deliveries = 1},
+		{id = "Watermelon", rarity = "Common", deliveries = 3},
+	}},
+	{id = "hazard", name = "Hazard Box", color = "7ed8fb", rewards = {
+		{id = "Ninja", rarity = "Rare", deliveries = 5},
+		{id = "Dinosaur", rarity = "Rare", deliveries = 8},
+	}},
+	{id = "elemental", name = "Elemental Box", color = "d2a6ff", rewards = {
+		{id = "Frozen", rarity = "Epic", deliveries = 12},
+		{id = "Lava", rarity = "Legendary", deliveries = 16},
+	}},
+}
+
+function C.boxStatus(box, skins, deliveries)
+	local ready, nextReward, remaining = {}, nil, 0
+	for _, reward in ipairs(box.rewards) do
+		if not skins[reward.id] then
+			remaining += 1
+			if deliveries >= reward.deliveries then
+				table.insert(ready, reward)
+			elseif not nextReward then
+				nextReward = reward
+			end
+		end
+	end
+	return ready, nextReward, remaining
+end
+
 C.bySkin = {}
 for _, skin in C.skins do C.bySkin[skin[1]] = skin end
+C.boxById, C.boxBySkin = {}, {}
+for _, box in ipairs(C.boxes) do
+	C.boxById[box.id] = box
+	for _, reward in ipairs(box.rewards) do
+		C.boxBySkin[reward.id] = {name = box.name, rarity = reward.rarity}
+	end
+end
 return C

@@ -197,7 +197,7 @@ end
 
 local function shop(parent, action)
 	local kiosk = Instance.new("Folder")
-	kiosk.Name = "Egg Shop"
+	kiosk.Name = "Egg Locker"
 	kiosk.Parent = parent
 	local x,z = -37,-13
 	platform(kiosk,"Market stall",x,z,22,16,slate,teal)
@@ -213,14 +213,14 @@ local function shop(parent, action)
 			if i%2 == 0 then teal else bone,Enum.Material.Fabric)
 	end
 	box(kiosk,"Awning valance",Vector3.new(x,8.8,z-4.75),Vector3.new(21,0.5,0.62),dark,Enum.Material.Metal)
-	sign(kiosk,"Shop sign",Vector3.new(x,8.8,z-5.2),Vector2.new(15,2.3),"EGG SHOP",teal,dark)
+	sign(kiosk,"Shop sign",Vector3.new(x,8.8,z-5.2),Vector2.new(15,2.3),"EGG LOCKER",teal,dark)
 	for i, skin in {"Watermelon","Ninja","Frozen","Lava"} do
 		local address = ({-8.2,-6.0,6.0,8.2})[i]
 		local prop = EggModel.build(skin,1.6,true)
 		prop:PivotTo(CFrame.new(x+address,3.85,z+2.4)*CFrame.Angles(0,i*0.7,0))
 		prop.Parent = kiosk
 	end
-	prompt(kiosk,Vector3.new(x,2.5,z-3.7),"Browse shells","Egg Shop","Shop",action)
+	prompt(kiosk,Vector3.new(x,2.5,z-3.7),"Eggs and reward boxes","Egg Locker","Shop",action)
 end
 
 local function warmup(parent, action)

@@ -13,7 +13,7 @@ end
 
 local function normalize(raw)
 	local data = typeof(raw) == "table" and raw or {}
-	for key, fallback in {coins=0, wins=0, xp=0, unlocked=1} do
+	for key, fallback in {coins=0, wins=0, xp=0, unlocked=1, deliveries=0} do
 		local value = data[key]
 		data[key] = if typeof(value) == "number" and value >= fallback then math.floor(value) else fallback
 	end
@@ -172,6 +172,7 @@ function D.finish(player, level, time, perfect, place, competitive)
 	local data = D.get(player)
 	if not data then return 0, false end
 	local reward, personal = Rules.complete(data,level,time,perfect,place,competitive)
+	data.deliveries += 1
 	D.summary(player)
 	return reward, personal
 end

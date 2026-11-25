@@ -43,7 +43,7 @@ end
 local function profile(player)
 	local d = Data.get(player)
 	if d then send(player,"Profile",{
-		skins=d.skins, trails=d.trails, skin=d.skin, trail=d.trail, title=d.title, records=d.records,
+		skins=d.skins, trails=d.trails, skin=d.skin, trail=d.trail, title=d.title, records=d.records, deliveries=d.deliveries,
 	}) end
 end
 
@@ -258,6 +258,15 @@ local function action(player, key, id)
 		if n and n % 1 == 0 and Levels[n] and n <= d.unlocked then
 			selected[player] = n
 		end
+	elseif key == "box" then
+		local message, reward, rarity = Shop.openBox(player,id)
+		if reward then
+			profile(player)
+			send(player,"BoxReward",reward,rarity)
+			task.spawn(Data.save,player,false)
+		else
+			send(player,"Notice",message)
+		end
 	elseif key == "skin" or key == "title" or key == "trail" then
 		if shopping[player] then return end
 		shopping[player] = true
@@ -286,7 +295,7 @@ end
 
 remote.OnServerEvent:Connect(function(player,key,id)
 	if typeof(key) ~= "string" or #key > 12 or (id ~= nil and (typeof(id) ~= "string" or #id > 32)) then return end
-	if (key == "skin" or key == "title" or key == "trail" or key == "choose" or key == "coins") and id == nil then return end
+	if (key == "skin" or key == "title" or key == "trail" or key == "choose" or key == "coins" or key == "box") and id == nil then return end
 	local clock = os.clock()
 	local limits = rate[player] or {}
 	rate[player] = limits
@@ -403,6 +412,8 @@ local function finish(player,r,time)
 	r.finished, r.zone = true, nil
 	resultCount += 1
 	local coins, personal = 0,false
+	local data = Data.get(player)
+	local previousBest = data and data.records[Rules.recordKey(level)]
 	if not practiceMode then
 		coins,personal = Data.finish(player,level,time,r.perfect,resultCount,duel)
 	end
@@ -410,6 +421,8 @@ local function finish(player,r,time)
 	r.result = {
 		place=resultCount,time=time,hp=r.hp,coins=coins,record=personal,practice=practiceMode,
 		advanced=tournament and not duel, champion=duel, completed=true,
+		perfect=r.perfect, previousBest=not practiceMode and previousBest or nil,
+		deliveries=not practiceMode and data and data.deliveries or nil,
 	}
 	table.insert(results,{name=player.DisplayName,time=time,place=resultCount})
 	publishFinish(player,r)

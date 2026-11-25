@@ -3,6 +3,21 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("EggShared")
 local Config = require(Shared.Config)
 local Data = require(script.Parent.Data)
 local Shop = {}
+local random = Random.new()
+
+function Shop.openBox(player, id)
+	local data = Data.get(player)
+	local box = Config.boxById[id]
+	if not data or not box then return "Box unavailable" end
+	local ready, nextReward = Config.boxStatus(box, data.skins, data.deliveries)
+	if #ready == 0 then
+		if nextReward then return ("Finish %d more races"):format(nextReward.deliveries - data.deliveries) end
+		return "Box collection complete"
+	end
+	local reward = ready[random:NextInteger(1, #ready)]
+	data.skins[reward.id] = true
+	return nil, reward.id, reward.rarity
+end
 
 local function grant(player,id)
 	local data = Data.get(player)
@@ -44,19 +59,13 @@ function Shop.select(player,kind,id)
 		local skin = Config.bySkin[id]
 		if not skin then return "Unknown egg" end
 		if not data.skins[id] then
-			if typeof(skin[3]) == "number" then
-				if data.coins < skin[3] then return "You need more coins" end
-				data.coins -= skin[3]
-				data.skins[id] = true
-			else
-				local pass = Config.passes[id]
-				if not pass or pass <= 0 then return "Currently unavailable" end
-				local ok, owned = owns(player,id,pass)
-				if not ok then return "Marketplace unavailable" end
-				if not owned then
-					return "Review the price in Roblox", pass
-				end
-			end
+			local box = Config.boxBySkin[id]
+			if box then return "Earn this shell in the " .. box.name end
+			local pass = Config.passes[id]
+			if not pass or pass <= 0 then return "Currently unavailable" end
+			local ok, owned = owns(player,id,pass)
+			if not ok then return "Marketplace unavailable" end
+			if not owned then return "Review the price in Roblox", pass end
 		end
 		data.skin = id
 	elseif kind == "trail" then

@@ -22,14 +22,21 @@ local ink, charcoal, muted = rgb("20281f"), rgb("374138"), rgb("596451")
 local paper, cream = rgb("fff5d8"), rgb("ebe1c4")
 local yellow, lime, rust = rgb("ffc639"), rgb("d3f480"), rgb("ff7657")
 local winnerRed = rgb("fa5451")
+local worlds = {
+	["Green Meadows"] = {color = rgb("b5e887"), hazards = "Rolling balls, spinners and rafts"},
+	["The Egg Cooker"] = {color = rgb("ffad87"), hazards = "Heat vents and vanishing platforms"},
+	["Frozen Eggs"] = {color = rgb("9ce6ff"), hazards = "Slippery ice and tilting platforms"},
+	["Eggstraterrestrial"] = {color = rgb("d8bbff"), hazards = "Orbiting hazards and blink pads"},
+	["Sunken Ruins"] = {color = rgb("8fe6cb"), hazards = "Rope crossings and relic chases"},
+}
 local typeface = Enum.Font.GothamMedium
 local heavy = Enum.Font.GothamBlack
 local digits = Enum.Font.Code
 local state = {stage = "Lobby", selected = 1, level = 1, deadline = 0}
 local race = {hp = 3, place = 1, total = 1, progress = 0, cooldown = 0, recover = 0}
-local profile = {skins = {Classic = true}, skin = "Classic", trails = {}, records = {}, title = 1}
+local profile = {skins = {Classic = true}, skin = "Classic", trails = {}, records = {}, title = 1, deliveries = 0}
 local tab, preview = nil, "Classic"
-local lockerPage = "Eggs"
+local lockerPage = "Boxes"
 local setTab, draw
 local advanceNote
 local lockerBalance
@@ -182,7 +189,7 @@ local play = button(dockInterior, "QUEUE", yellow, ink, function()
 	fire((state.queued or state.practiceQueued) and "lobby" or "queue")
 end)
 play.Size = UDim2.new(0.25, -4, 1, 0)
-for index, item in ipairs({{"ISLANDS", "Courses"}, {"LOCKER", "Shop"}, {"STATS", "Stats"}, {"AUDIO", "Settings"}}) do
+for index, item in ipairs({{"WORLDS", "Courses"}, {"LOCKER", "Shop"}, {"STATS", "Stats"}, {"AUDIO", "Settings"}}) do
 	local option = button(dockInterior, item[1], charcoal, paper, function()
 		setTab(item[2])
 	end)
@@ -212,7 +219,7 @@ local toast = frame(root, ink, UDim2.new(1, -36, 0, 31), UDim2.new(0.5, 0, 0, 10
 toast.AnchorPoint = Vector2.new(0.5, 0)
 toast.Visible = false
 toast.ZIndex = 12
-limit(toast, 310, 31)
+limit(toast, 400, 31)
 local toastText = label(toast, "", yellow, UDim2.new(1, -18, 1, 0), UDim2.fromOffset(9, 0), 12, heavy)
 local toastVersion = 0
 local function notice(message)
@@ -288,10 +295,10 @@ local function updateDraft(current)
 		local item = Levels[maps[index]]
 		local picked = index <= settled and item ~= nil
 		card.row.Visible = item ~= nil
-		card.row.BackgroundColor3 = if index == heat then lime else charcoal
-		card.heat.TextColor3 = if index == heat then ink else yellow
-		card.name.TextColor3 = if index == heat then ink else paper
-		card.rating.TextColor3 = if index == heat then ink else lime
+		card.row.BackgroundColor3 = if picked then worlds[item.island].color elseif index == heat then cream else charcoal
+		card.heat.TextColor3 = if picked or index == heat then ink else yellow
+		card.name.TextColor3 = if picked or index == heat then ink else paper
+		card.rating.TextColor3 = ink
 		card.name.Text = if picked then item.name elseif index == heat then "Drawing…" else "—"
 		card.rating.Text = if picked then string.upper(item.rating or "") else ""
 	end
@@ -385,35 +392,42 @@ end
 
 local function showCourses()
 	local unlocked = player:GetAttribute("Unlocked") or 1
-	local previousIsland
+	local previousIsland, worldNumber = nil, 0
+	row("Pick a solo course or practice any map.", muted, 12, typeface, 22)
 	for index, course in ipairs(Levels) do
-		local island = course.island or "Green Meadows"
+		local island = course.island
+		local theme = worlds[island]
 		if island ~= previousIsland then
-			row(string.upper(island), muted, 11, heavy, 25)
+			worldNumber += 1
+			local header = append(frame(list, theme.color, UDim2.new(1, -8, 0, 65), nil, 7))
+			left(label(header, ("WORLD %d"):format(worldNumber), ink, UDim2.new(1, -24, 0, 14), UDim2.fromOffset(12, 5), 10, digits))
+			left(label(header, island, ink, UDim2.new(1, -24, 0, 23), UDim2.fromOffset(12, 19), 19, heavy))
+			left(label(header, theme.hazards, ink, UDim2.new(1, -24, 0, 16), UDim2.fromOffset(12, 43), 11))
 			previousIsland = island
 		end
 		local available = index <= unlocked
 		local selected = index == state.selected
-		local card = append(frame(list, selected and cream or paper, UDim2.new(1, -8, 0, 56), nil, 5))
-		outline(card, selected and muted or cream)
-		local detailWidth = -83
-		local title = ("%02d   %s"):format(index, course.name)
-		if available then
-			local select = button(card, title, selected and cream or paper, ink, function() fire("choose", tostring(index)) end)
-			select.Size = UDim2.new(1, detailWidth, 0, 28)
-			select.Position = UDim2.fromOffset(6, 2)
-			select.TextXAlignment = Enum.TextXAlignment.Left
+		local card = append(frame(list, selected and theme.color or cream, UDim2.new(1, -8, 0, 85), nil, 6))
+		local title = ("%02d  %s"):format(index, course.name)
+		left(label(card, title, ink, UDim2.new(1, -18, 0, 25), UDim2.fromOffset(9, 7), 13, heavy))
+		local best = profile.records[Rules.recordKey(index)]
+		local detail = string.upper(course.rating)
+		if best then detail ..= ("  ·  PB %.2fs"):format(best) end
+		left(label(card, detail, ink, UDim2.new(1, -168, 0, 16), UDim2.fromOffset(9, 48), 10, digits))
+		if available and not selected then
+			local pick = button(card, "PICK", paper, ink, function() fire("choose", tostring(index)) end)
+			pick.Size = UDim2.fromOffset(66, 42)
+			pick.Position = UDim2.new(1, -148, 0, 35)
+			pick.TextSize = 11
 		else
-			left(label(card, title, muted, UDim2.new(1, detailWidth, 0, 28), UDim2.fromOffset(6, 2), 13, heavy))
+			label(card, selected and "PICKED" or "LOCKED", ink, UDim2.fromOffset(66, 42), UDim2.new(1, -148, 0, 35), 10, heavy)
 		end
-		local detail = if selected then "SOLO PICK" elseif available then course.rating else "LOCKED FOR SOLO"
-		left(label(card, string.upper(detail), muted, UDim2.new(1, detailWidth, 0, 16), UDim2.fromOffset(6, 29), 10, digits))
 		local practice = button(card, "PRACTICE", ink, paper, function()
 			fire("practice", tostring(index))
 			setTab(nil)
 		end)
-		practice.Size = UDim2.fromOffset(69, 44)
-		practice.Position = UDim2.new(1, -75, 0, 6)
+		practice.Size = UDim2.fromOffset(70, 42)
+		practice.Position = UDim2.new(1, -76, 0, 35)
 		practice.TextSize = 10
 	end
 end
@@ -428,7 +442,7 @@ end
 
 local function showEggs()
 	local skin = Config.bySkin[preview]
-	local cost = skin[3]
+	local source = Config.boxBySkin[preview]
 	local owned = profile.skins[preview]
 	local enabled = Config.passes[preview] and Config.passes[preview] > 0
 	local accent = Color3.fromRGB(table.unpack(skin[5]))
@@ -464,17 +478,22 @@ local function showEggs()
 		action = "EQUIP"
 	elseif enabled then
 		action = "VIEW PRICE"
-	elseif typeof(cost) == "number" then
-		action = ("BUY · %d COINS"):format(cost)
+	elseif source then
+		action = "VIEW " .. string.upper(source.name)
 	end
 	if action and action ~= "EQUIPPED" then
-		local equip = button(card, action, yellow, ink, function() fire("skin", preview) end)
+		local equip = button(card, action, yellow, ink, function()
+			if source and not owned then restyleLocker("Boxes") else fire("skin", preview) end
+		end)
+		equip.TextSize = 11
 		equip.Size = UDim2.new(0.58, -17, 0, 34)
 		equip.Position = UDim2.new(0.42, 5, 1, -47)
 	else
 		local message = if action then action elseif preview == "Cosmic" then "WORLD 4 REWARD" else "UNAVAILABLE"
 		left(label(card, message, lime, UDim2.new(0.58, -17, 0, 34), UDim2.new(0.42, 5, 1, -47), 11, heavy))
 	end
+
+	if source then row(source.rarity .. " · " .. source.name, muted, 12, heavy, 22) end
 
 	local collected = 0
 	for _, item in ipairs(Config.skins) do
@@ -524,7 +543,7 @@ end
 
 local function showCoinPacks()
 	lockerBalance = row("", ink, 14, heavy)
-	local detail = row("Coins buy eggs and trails.", muted, 12, typeface)
+	local detail = row("Coins buy trails.", muted, 12, typeface)
 	detail.TextWrapped = true
 	detail.TextTruncate = Enum.TextTruncate.None
 	for _, entry in ipairs(Config.coinPacks or {}) do
@@ -546,18 +565,50 @@ local function showCoinPacks()
 	end
 end
 
+local function showBoxes()
+	local deliveries = profile.deliveries or 0
+	row(("%d race finishes · Boxes are free"):format(deliveries), ink, 14, heavy, 27)
+	for _, box in ipairs(Config.boxes) do
+		local ready, nextReward, remaining = Config.boxStatus(box, profile.skins, deliveries)
+		local accent = rgb(box.color)
+		local heading = append(frame(list, accent, UDim2.new(1, -7, 0, 36), nil, 6))
+		left(label(heading, box.name, ink, UDim2.new(1, -20, 1, 0), UDim2.fromOffset(10, 0), 15, heavy))
+		for _, reward in ipairs(box.rewards) do
+			local status
+			if profile.skins[reward.id] then
+				status = "Collected"
+			elseif deliveries < reward.deliveries then
+				status = ("%d finishes"):format(reward.deliveries)
+			else
+				status = ("%d%%"):format(100 / #ready)
+			end
+			row(("%s · %s · %s"):format(reward.id, reward.rarity, status), ink, 12, typeface, 23)
+		end
+		if #ready > 0 then
+			listButton(("OPEN BOX  (%d READY)"):format(#ready), ink, paper, function()
+				fire("box", box.id)
+			end)
+		elseif nextReward then
+			row(("Next box in %d more finishes"):format(nextReward.deliveries - deliveries), muted, 12, typeface, 26)
+		elseif remaining == 0 then
+			row("Collection complete", muted, 12, typeface, 26)
+		end
+	end
+end
+
 local function showShop()
 	local tabsBar = append(frame(list, ink, UDim2.new(1, -7, 0, 42), nil, 5))
-	for index, page in ipairs({"Eggs", "Trails", "Coin packs"}) do
+	for index, page in ipairs({"Eggs", "Boxes", "Trails", "Coin packs"}) do
 		local active = lockerPage == page
 		local option = button(tabsBar, string.upper(page), active and yellow or charcoal, active and ink or paper, function()
 			restyleLocker(page)
 		end)
-		option.Size = UDim2.new(1 / 3, -6, 1, -10)
-		option.Position = UDim2.new((index - 1) / 3, 4, 0, 5)
+		option.Size = UDim2.new(1 / 4, -6, 1, -10)
+		option.Position = UDim2.new((index - 1) / 4, 4, 0, 5)
 		option.TextSize = 11
 	end
-	if lockerPage == "Trails" then showTrails()
+	if lockerPage == "Boxes" then showBoxes()
+	elseif lockerPage == "Trails" then showTrails()
 	elseif lockerPage == "Coin packs" then showCoinPacks()
 	else showEggs() end
 end
@@ -645,6 +696,27 @@ local function showResults()
 		reason.TextWrapped = true
 		reason.TextTruncate = Enum.TextTruncate.None
 	end
+	if result and result.completed then
+		if result.perfect then row("CLEAN DELIVERY · No hits", ink, 12, heavy, 24) end
+		if result.previousBest and result.time then
+			local delta = result.time - result.previousBest
+			row(("PERSONAL BEST PACE   %+.2fs"):format(delta), ink, 12, digits, 24)
+		end
+		if result.deliveries then
+			local nextMilestone
+			local available = 0
+			for _, box in ipairs(Config.boxes) do
+				local ready, nextReward = Config.boxStatus(box, profile.skins, result.deliveries)
+				available += #ready
+				if nextReward and not nextMilestone then nextMilestone = nextReward.deliveries end
+			end
+			if available > 0 then
+				row("Reward box ready in the locker", ink, 12, heavy, 24)
+			elseif nextMilestone then
+				row(("%d more finishes to your next box"):format(nextMilestone - result.deliveries), ink, 12, heavy, 24)
+			end
+		end
+	end
 	local advanced = result and result.advanced and not result.champion
 	if advanced then
 		advanceNote = row("", ink, 12, digits, 35)
@@ -666,7 +738,7 @@ local function showResults()
 end
 
 local tabs = {
-	Courses = {title = "Island trials", color = lime, render = showCourses},
+	Courses = {title = "Choose a world", color = lime, render = showCourses},
 	Shop = {title = "Egg locker", color = yellow, render = showShop},
 	Stats = {title = "Courier record", color = lime, render = showStats},
 	Settings = {title = "Audio", color = cream, render = showSettings},
@@ -782,6 +854,11 @@ remote.OnClientEvent:Connect(function(kind, value, extra)
 		setTab(value)
 	elseif kind == "Notice" then
 		notice(value)
+	elseif kind == "BoxReward" then
+		preview = value
+		lockerPage = "Eggs"
+		setTab("Shop")
+		notice(extra .. " unlocked · " .. Config.bySkin[value][2])
 	elseif kind == "Pass" then
 		local ok = pcall(MarketplaceService.PromptGamePassPurchase, MarketplaceService, player, value)
 		if not ok then notice("Purchase prompt unavailable") end
