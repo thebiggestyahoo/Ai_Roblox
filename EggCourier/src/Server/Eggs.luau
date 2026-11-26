@@ -1,6 +1,7 @@
 local Debris = game:GetService("Debris")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("EggShared")
 local EggModel = require(Shared.EggModel)
+local Trophy = require(Shared.TrophyModel)
 local Eggs = {}
 local activePoses = setmetatable({}, {__mode = "k"})
 
@@ -11,6 +12,20 @@ local function releasePose(egg)
 		release()
 	end
 end
+
+local trailColors = {
+	Lightning={"5deaff","fff9d7"}, Rainbow={"fc67ff","6beeff"}, VIP={"ffdc53","fff9d7"},
+	Expedition={"feac62","74e6b2"}, Aurora={"78f8ef","cf99ff"},
+}
+local accessoryColors = {
+	["Sun Pin"]="ffd35f", ["Trail Ribbon"]="ff9bc4", ["Jade Compass"]="73e7bb",
+	["Star Pin"]="89dfff", ["Cloud Patch"]="efe1ff", ["Crown Patch"]="ffb56f",
+}
+local victoryColors = {
+	["Carton Confetti"]={"ff81b2","8cf0ff"}, ["Relic Spark"]={"87ffd5","ffdd78"},
+	["Shooting Star"]={"bba9ff","9df1ff"}, ["Aurora Burst"]={"86f4e4","e8a2ff"},
+	["Crown Parade"]={"ffcd65","ff8768"}, ["Celestial Finale"]={"b9adff","fff5ba"},
+}
 
 local championRed = Color3.fromHex("ff334b")
 
@@ -126,6 +141,53 @@ local function poseArms(character, humanoid, torso, egg, offset)
 	egg.Destroying:Once(function() releasePose(egg) end)
 end
 
+local function decorateShell(shell, accessory)
+	local color = accessoryColors[accessory or ""]
+	if not color then return end
+	for index=0,4 do
+		local angle = index*math.pi*0.4
+		local pin = Instance.new("Part")
+		pin.Name = "Equipped shell pin"
+		pin.Shape = Enum.PartType.Ball
+		pin.Material = Enum.Material.SmoothPlastic
+		pin.Color = if index%2 == 0 then Color3.fromHex(color) else Color3.fromHex("fff7dc")
+		pin.Size = Vector3.new(0.15,0.15,0.10)*shell.Size.X
+		pin.CFrame = shell.CFrame*CFrame.new(
+			(shell.Size.X*0.10)*math.cos(angle),
+			(shell.Size.Y*0.21)+(shell.Size.X*0.10)*math.sin(angle),
+			-shell.Size.Z*0.455
+		)
+		pin.CanCollide, pin.CanTouch, pin.CanQuery = false,false,false
+		pin.Massless = true
+		local weld = Instance.new("WeldConstraint",pin)
+		weld.Part0, weld.Part1 = shell,pin
+		pin.Parent = shell
+	end
+end
+
+function Eggs.celebrate(player, data)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	local colors = victoryColors[data.victory or ""] or {"ffcc60","fff2bd"}
+	local trophy = Trophy.build()
+	trophy:PivotTo(CFrame.new(root.Position+Vector3.new(0,3,0))*CFrame.Angles(0,math.pi,0))
+	trophy.Parent = workspace
+	Debris:AddItem(trophy,3)
+	local confetti = Instance.new("ParticleEmitter")
+	confetti.Name = "Victory color burst"
+	confetti.Color = ColorSequence.new(Color3.fromHex(colors[1]),Color3.fromHex(colors[2]))
+	confetti.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,0.24),NumberSequenceKeypoint.new(1,0)})
+	confetti.Lifetime = NumberRange.new(0.9,1.7)
+	confetti.Speed = NumberRange.new(4,11)
+	confetti.SpreadAngle = Vector2.new(110,110)
+	confetti.Acceleration = Vector3.new(0,-12,0)
+	confetti.Rate = 0
+	confetti.LightEmission = 0.55
+	confetti.Parent = trophy.PrimaryPart
+	confetti:Emit(data.victory and 52 or 28)
+end
+
 function Eggs.attach(player, data, hp)
 	local character = player.Character
 	local head = character and character:FindFirstChild("Head")
@@ -151,6 +213,7 @@ function Eggs.attach(player, data, hp)
 	motor.C0 = offset
 	motor.Parent = egg.PrimaryPart
 	poseArms(character,humanoid,torso,egg,offset)
+	decorateShell(shell,data.accessory)
 	EggModel.condition(egg,hp)
 	local previous = head:FindFirstChild("CourierTitle")
 	if previous then previous:Destroy() end
@@ -167,7 +230,7 @@ function Eggs.attach(player, data, hp)
 	title.TextStrokeTransparency = 0.5
 	title.TextColor3 = Color3.fromHex("fff4ab")
 	local config = require(Shared.Config)
-	title.Text = (data.skins.VIP and "VIP  •  " or "") .. (config.titles[data.title] or config.titles[1])
+	title.Text = (data.skins.VIP and "VIP  •  " or "") .. (data.customTitle or config.titles[data.title] or config.titles[1])
 	local root = character:FindFirstChild("HumanoidRootPart")
 	if root then
 		for _, name in {"CourierTrail","CourierTrailLeft","CourierTrailRight"} do
@@ -187,8 +250,8 @@ function Eggs.attach(player, data, hp)
 			trail.Lifetime = 0.28
 			trail.MinLength = 0.2
 			trail.FaceCamera = true
-			local color = if data.trail == "Rainbow" then Color3.fromHex("fc67ff") elseif data.trail == "VIP" then Color3.fromHex("ffdc53") else Color3.fromHex("5deaff")
-			trail.Color = ColorSequence.new(color,Color3.fromHex("fff9d7"))
+			local colors = trailColors[data.trail] or trailColors.Lightning
+			trail.Color = ColorSequence.new(Color3.fromHex(colors[1]),Color3.fromHex(colors[2]))
 			trail.Transparency = NumberSequence.new(0.15,1)
 		end
 	end

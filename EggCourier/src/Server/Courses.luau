@@ -8,15 +8,19 @@ local v = Vector3.new
 local ink, cream = rgb("151f26"), rgb("ffedca")
 local red, amber = rgb("ff4c42"), rgb("ffc455")
 
-local themes = {
-	["Green Meadows"] = {deck="42573f", rim="eaa935", lane="e8c86e", hazard="ef6044", ground="56908a", rock="556548", sky="f6d6ad"},
-	["The Egg Cooker"] = {deck="403738", rim="f89645", lane="ccb48f", hazard="ff582e", ground="cb4325", rock="342729", sky="fbb469"},
-	["Frozen Eggs"] = {deck="2d6173", rim="97eee5", lane="b9edf2", hazard="f75f6a", ground="67aac3", rock="809eba", sky="a9e4ee"},
-	["Eggstraterrestrial"] = {deck="252743", rim="b99cff", lane="86eed5", hazard="fa6e9e", ground="24253d", rock="322e57", sky="a898ff"},
-	["Sunken Ruins"] = {deck="554d3e", rim="efb46b", lane="90ead8", hazard="af6a43", ground="2a7364", rock="645c49", sky="d6cbb0"},
+local tones = {
+	temple={"668270","d4ab6d","30664c"}, pirate={"93674b","c59863","17667f"},
+	prehistoric={"62734b","97b867","4e8b64"}, factory={"975a82","ce9db7","78526c"},
+	frozen={"81c6df","bde9f0","4c8fb7"}, cloud={"887dc0","b5b5e4","716ba8"},
+	neon={"423c67","62508b","252849"}, galactic={"494877","7271b8","1d2446"},
 }
-for _, colors in themes do
-	for name, hex in colors do colors[name] = rgb(hex) end
+
+local function colorsFor(world)
+	local tonesForWorld = tones[world.key]
+	return {
+		deck=rgb(tonesForWorld[1]), rock=rgb(tonesForWorld[2]), ground=rgb(tonesForWorld[3]),
+		rim=rgb(world.accent), lane=rgb("b0f5c3"), hazard=rgb("ff815e"),
+	}
 end
 
 local function part(c, name, px, py, pz, size, color, solid, shape, angles)
@@ -30,9 +34,10 @@ local function deck(c, first, last, width, offset, top, color)
 	return part(c,"Runway",offset or 0,(top or 0)-0.9,(first+last)/2,v(width,1.8,last-first),color or c.colors.deck,true)
 end
 
-local function light(c, name, px, py, pz, size, color)
-	local p = part(c,name,px,py,pz,size,color)
+local function light(c, name, px, py, pz, size, color, shape, angles)
+	local p = part(c,name,px,py,pz,size,color,false,shape,angles)
 	p.Material = Enum.Material.Neon
+	p.CastShadow = false
 	return p
 end
 
@@ -106,560 +111,787 @@ local function finishGate(c)
 	end
 end
 
-local function footing(c, first, last, width)
-	deck(c,first,last,width)
-	marking(c,first+0.3,width-0.7,0,c.colors.lane)
-end
+local ball = Enum.PartType.Ball
+local cylinder = Enum.PartType.Cylinder
+local vertical = CFrame.Angles(0,0,math.pi/2)
+local deckWidth, arenaWidth = 34, 30
+local bayTint = rgb("a1e6b6")
 
-local function waitingBay(c, row, width)
-	part(c,"Safe standing bay",0,0.019,row,v(width-0.85,0.038,2.9),c.colors.lane)
+local function bay(c,z,width)
+	part(c,"Safe waiting stripe",0,0.036,z,v(width,0.072,1.2),bayTint)
 	for _, side in {-1,1} do
-		light(c,"Safe bay edge",side*(width/2-0.7),0.049,row,v(0.12,0.04,2.6),cream)
+		light(c,"Refuge lamp",side*(width/2+0.4),0.3,z,v(0.38,0.56,0.72),c.colors.lane)
 	end
 end
 
-local function obstacle(c, kind, x, y, z, phase, overrides)
-	local stats = table.clone(overrides or {})
-	local def = Obstacles.definitions[kind]
-	if def.speed then stats.speed = (stats.speed or def.speed)*c.pace end
+local function hazard(c,kind,x,y,z,phase,settings)
+	local stats = table.clone(settings or {})
+	local definition = Obstacles.definitions[kind]
+	if definition.speed and kind ~= "wind" and kind ~= "slide" and kind ~= "launch" and kind ~= "gravity" then
+		stats.speed = (stats.speed or definition.speed)*c.pace
+	end
 	stats.color = stats.color or c.colors.hazard
 	return Obstacles.add(c,kind,v(c.x+x,y,c.z+z),phase,stats)
 end
 
-local function banks(c, z, finish, width, approach, landing)
-	footing(c,z,z+approach,width)
-	footing(c,z+finish-landing,z+finish,width)
-	return finish, width
-end
-
-local function deckDots(c, x, z, width, y)
+local function ledge(c,first,last,width,x,top)
+	deck(c,first,last,width,x,top,c.colors.deck)
+	local mid = (first+last)*0.5
 	for _, side in {-1,1} do
-		local dotX = x+(width/2-0.5)*side
-		light(c,"Edge bead",dotX,y+0.035,z,v(0.32,0.08,0.98),c.colors.rim)
+		part(c,"Platform lip",x+side*(width*0.5-0.18),top+0.028,mid,v(0.3,0.055,last-first),c.colors.rim)
 	end
 end
 
-local function disc(c, x, z, radius, color)
-	local orientation = CFrame.Angles(0,0,math.pi/2)
-	part(c,"Circular perch",x,-0.65,z,v(1.3,radius*2,radius*2),color,true,Enum.PartType.Cylinder,orientation)
-	part(c,"Perch trim",x,-0.93,z,v(0.24,radius*2+0.2,radius*2+0.2),c.colors.rim,false,Enum.PartType.Cylinder,orientation)
-	for i=1,8 do
-		local t=i*math.pi/4
-		light(c,"Perch marker",x+(radius-0.5)*math.cos(t),0.025,z+(radius-0.5)*math.sin(t),v(0.5,0.08,0.5),c.colors.lane)
+local function ramp(c,x,first,last,width,bottom,top)
+	local span, rise = last-first, top-bottom
+	local angle = math.atan2(-rise,span)
+	local cf = CFrame.Angles(angle,0,0)
+	part(c,"Sloped runway",x,(top+bottom)*0.5-0.55,(first+last)*0.5,
+		v(width,1.1,math.sqrt(span*span+rise*rise)+0.3),c.colors.deck,true,nil,cf)
+end
+
+local function rideDetail(c,ride,name,offset,size,tint,shape,angles)
+	local base = ride.CFrame*CFrame.new(offset)
+	local detail = Obstacles.part(c.model,name,size,angles and base*angles or base,tint,false,shape)
+	detail.CanQuery, detail.CastShadow, detail.Massless = false, false, true
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0, weld.Part1, weld.Parent = ride, detail, detail
+	detail.Anchored = false
+end
+
+local function rail(c,x,first,last)
+	for _, side in {-1,1} do
+		part(c,"Cart rail",x+side*2.75,-1.36,(first+last)*0.5,v(0.24,0.24,last-first),c.colors.rim)
+	end
+	for row=first+2,last-2,5.4 do
+		part(c,"Rail tie",x,-1.65,row,v(6.9,0.24,0.75),ink)
 	end
 end
 
-local sections = {}
+local function flaggedLane(c,x,first,last,width)
+	ledge(c,first,last,width,x,0)
+	for row=first+2,last-2,10 do
+		part(c,"Detour marker",x,0.035,row,v(1.5,0.07,1.25),c.colors.lane)
+	end
+end
 
-function sections.punch(c,z,index)
-	local width = 19
-	deck(c,z,z+42,width)
-	gate(c,"FOAM FISTS • WAIT FOR THE OPEN SIDE",z+2,width,c.colors.rim)
+local encounters = {}
+
+function encounters.weave(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
+	for i=1,4 do
+		local side = if (i+variant)%2==0 then 1 else -1
+		local row = z+9+i*(length-22)/5
+		local height = i==2 and 3.2 or 4.8
+		part(c,"Slalom barricade",side*6,height/2,row,v(17,height,3.15),c.colors.rock,true)
+		part(c,"Barricade cap",side*6,height,row,v(17.3,0.28,3.4),c.colors.rim)
+		bay(c,row-3.9,28)
+	end
+end
+
+function encounters.sweepers(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
 	for i=1,3 do
-		local row=z+8+(i-1)*13
-		obstacle(c,"foam",0,0,row,index*0.78+i*2.09,{size=v(8.8,3.2,2.15),y=1.6,range=7,speed=1.28})
-		for _, side in {-1,1} do
-			part(c,"Piston housing",side*12.1,1.2,row,v(3.1,3.3,4.9),ink)
-			light(c,"Piston stripe",side*11.55,3,row,v(0.5,0.12,3.4),c.colors.rim)
-		end
-		if i<3 then waitingBay(c,row+6.5,width) end
+		local row = z+8+i*(length-20)/4
+		local x = ((i+variant)%2==0 and -1 or 1)*6
+		hazard(c,"sweep",x,0,row,i*1.9,{size=v(13.5,0.78,1.1),y=0.56,speed=1.04+i*0.11})
+		part(c,"Sweep center",x,0.035,row,v(0.07,13.5,13.5),c.colors.rock,false,cylinder,vertical)
+		bay(c,row-7.8,28)
 	end
-	return 42,width
 end
 
-function sections.steps(c,z,index)
-	local width=15
-	banks(c,z,50,width,5,5.8)
+function encounters.rollers(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
 	for i=1,3 do
-		local begin=z+8.8+(i-1)*11.55
-		local px=(i%2==index%2 and -1 or 1)*(c.pace>1.1 and 3 or 2.4)
-		local top=(i%2)*0.35
-		deck(c,begin,begin+7.65,11,px,top,c.colors.deck)
-		deckDots(c,px,begin+1,9,top)
-		deckDots(c,px,begin+5.65,9,top)
+		local row = z+7+i*(length-20)/4
+		local x = ((i+variant)%2==0 and -1 or 1)*6
+		hazard(c,"roller",x,0,row,i*2.07,{size=v(10.6,2.5,2.5),y=1.25,range=4.8,speed=1.33})
+		bay(c,row-3.9,28)
 	end
-	return 50,width
 end
 
-function sections.rafts(c,z,index)
-	local width=17
-	banks(c,z,45,width,6,6)
+function encounters.bouncers(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
+	for i=1,3 do
+		local row = z+8+i*(length-22)/4
+		local x = ((i+variant)%2==0 and -1 or 1)*4.8
+		hazard(c,"ball",x,0,row,i*1.93,{size=v(6.1,6.1,6.1),y=3.05,range=6.6,bounce=1.85,speed=1.21})
+		bay(c,row-5.1,28)
+	end
+end
+
+function encounters.hammers(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
+	for i=1,3 do
+		local row = z+9+i*(length-22)/4
+		local side = if (i+variant)%2==0 then 1 else -1
+		part(c,"Hammer support",side*15.7,8,row,v(1.3,16,1.3),ink)
+		part(c,"Hammer bracket",side*10.5,16,row,v(11,0.8,0.8),c.colors.rock)
+		hazard(c,"pendulum",side*5.5,0,row,i*2.3,{size=v(5.2,5.2,5.2),range=6.2,speed=1.22})
+		bay(c,row-4.8,28)
+	end
+end
+
+function encounters.pistons(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
+	for i=1,4 do
+		local row = z+9+i*(length-24)/5
+		local side = if (i+variant)%2==0 then 1 else -1
+		part(c,"Hydraulic piston housing",side*14.7,2.6,row,v(3,5.2,4.5),ink)
+		hazard(c,"foam",side*7.8,0,row,i*1.78,{size=v(9.6,4.2,2.1),y=2.1,range=5,speed=1.18})
+		bay(c,row-3.7,28)
+	end
+end
+
+function encounters.locks(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
+	for i=1,3 do
+		local row = z+9+i*(length-22)/4
+		local side = if (i+variant)%2==0 then 1 else -1
+		hazard(c,"gate",side*7.75,0,row,i*1.69,{size=v(14.5,5.4,1.2),y=2.7,color=c.colors.rim})
+		part(c,"Door jamb",side*14.8,5,row,v(1.4,10,2.5),c.colors.rock,true)
+		part(c,"Door lintel",side*7.6,10,row,v(15.2,1.2,2.45),c.colors.rock)
+		part(c,"Fixed barrier", -side*6.5,2.45,row,v(12.8,4.9,1.2),c.colors.rock,true)
+		bay(c,row-4.7,28)
+	end
+end
+
+function encounters.hotFloor(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
+	for i=1,4 do
+		local row = z+9+i*(length-24)/5
+		local x = ((i+variant)%2==0 and -1 or 1)*6.2
+		hazard(c,"pulse",x,0,row,i*1.71,{size=v(17.4,0.22,4.45),period=5.28,open=1.54,color=ink})
+		bay(c,row-4.6,28)
+	end
+end
+
+function encounters.boulderLane(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
 	for i=1,2 do
-		obstacle(c,"moving",0,0,z+15.55+(i-1)*13.9,index+i*2.8,{
-			size=v(11.7,1.9,10.1),y=-0.95,range=2.15,speed=1.15,color=c.colors.rim,
+		local row = z+length*(0.28+(i-1)*0.43)
+		local x = ((i+variant)%2==0 and -1 or 1)*5.45
+		for _, side in {-1,1} do
+			part(c,"Boulder refuge",x+side*8.3,0.07,row,v(3.15,0.14,13.4),c.colors.lane)
+			part(c,"Carved boulder rail",x+side*6.3,0.2,row,v(0.33,0.4,18),c.colors.rock)
+		end
+		hazard(c,"boulder",x,0,row,i*3.9,{size=v(9.25,9.25,9.25),y=4.63,range=12.5,period=8,travel=3.35,color=c.colors.rock})
+	end
+end
+
+function encounters.migration(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
+	for i=1,3 do
+		local row = z+9+i*(length-22)/4
+		local side = if (i+variant)%2==0 then 1 else -1
+		local x = side*4.5
+		local moving = hazard(c,"sentry",x,0,row,i*2.24,{
+			color=rgb("78a853"), size=v(7.8,5.2,5.55), y=2.6, period=9.1, range=9.4,
 		})
+		moving.part.Shape = ball
+		moving.details = {}
+		local function detail(name,dx,y,dz,size,tint)
+			local object = part(c,name,x+dx,y,row+dz,size,tint,false,ball)
+			table.insert(moving.details,{part=object,offset=CFrame.new(dx,y-2.6,dz)})
+		end
+		detail("Marching hatchling head",-3.8,4.25,0,v(3.2,3.1,3),rgb("92c85c"))
+		detail("Marching hatchling eye",-4.6,4.8,-1.21,v(0.55,0.77,0.38),ink)
+		detail("Marching hatchling tail",4.0,2.0,0,v(4.6,1.5,1.6),rgb("6d9b52"))
+		for _, dx in {-1.7,1.6} do
+			detail("Marching hatchling foot",dx,0.69,-1.65,v(1.8,1.3,1.7),rgb("5f884a"))
+		end
+		bay(c,row-4.8,28)
 	end
-	return 45,width
 end
 
-function sections.ferry(c,z,index)
-	local width=17
-	banks(c,z,43,width,7,9)
-	obstacle(c,"moving",0,0,z+21,index*1.43,{
-		size=v(12,1.9,10.2),y=-0.95,axis=Vector3.zAxis,range=7,speed=1.16,color=c.colors.rim,
-	})
+function encounters.belts(c,z,length,variant)
+	local span = (length-14)/3
+	for i=1,3 do
+		local first = z+7+(i-1)*span
+		local row = first+span/2
+		local side = if (i+variant)%2==0 then 1 else -1
+		hazard(c,"conveyor",side*7.5,0,row,i,{size=v(15,1.4,span+0.05),speed=8.5,color=ink})
+		hazard(c,"conveyor",-side*7.5,0,row,i,{size=v(15,1.4,span+0.05),speed=-4,color=c.colors.rock})
+		for offset=-span/2+3,span/2-1,4 do
+			part(c,"Belt arrow",side*7.5,0.032,row+offset,v(3.7,0.064,0.75),c.colors.lane)
+		end
+		hazard(c,"pulse",side*7.5,0,row+span/2-3.2,i*2.1,{size=v(11.8,0.22,2.9),period=4.75,open=1.28,color=ink})
+	end
+end
+
+function encounters.rafter(c,z,length,variant)
+	local side = if variant%2==0 then 1 else -1
+	local x = side*7.9
+	local start, finish = z+7, z+length-7
+	rail(c,x,start,finish)
+	local span = finish-start
+	local ride = hazard(c,"moving",x,0,start+span/2,0.7*variant,{
+		size=v(10.1,1.4,14.5), range=(span-13.4)/2, speed=0.46, axis=Vector3.zAxis, color=c.colors.rim,
+	}).part
+	local theme = c.worldKey
+	for _, edge in {-1,1} do
+		if theme == "temple" or theme == "prehistoric" or theme == "neon" then
+			for _, axel in {-1,1} do
+				rideDetail(c,ride,"Courier trolley wheel",v(edge*4.4,-0.85,axel*4.4),v(0.75,1.65,1.65),ink,cylinder)
+			end
+			rideDetail(c,ride,"Courier trolley rail",v(edge*4.95,1.12,0),v(0.45,0.73,13.8),c.colors.rock)
+		elseif theme == "pirate" or theme == "factory" then
+			rideDetail(c,ride,"Cargo ferry pontoon",v(edge*4.4,-0.52,0),v(2.45,2.1,13.5),c.colors.rock,ball)
+			rideDetail(c,ride,"Cargo ferry trim",v(edge*5,1.08,0),v(0.42,0.6,13.4),ink)
+		else
+			rideDetail(c,ride,"Gondola shell",v(edge*4.75,0.02,0),v(1.15,2.9,13.7),c.colors.rock,ball)
+			rideDetail(c,ride,"Gondola marker",v(edge*4.98,0.18,0),v(0.42,0.68,7.9),c.colors.lane)
+		end
+	end
+	for i=1,4 do
+		local pace = span/4
+		local first = start+(i-1)*pace
+		flaggedLane(c,-x+((i%2==0 and 1 or -1)*1.8),first,first+pace-(i==4 and 0 or 3.65),10.4)
+	end
+end
+
+function encounters.balance(c,z,length,variant)
+	local span = (length-14)/4
+	for i=1,4 do
+		local x = (if (i+variant)%2==0 then 1 else -1)*2.65
+		local first = z+7+(i-1)*span
+		local size = span-3.65
+		hazard(c,"tilt",x,0,first+size/2,i*1.4,
+			{size=v(13,1.4,size),range=0.2,speed=0.95,color=c.colors.rim})
+		flaggedLane(c,12.4,first,first+span-(i==4 and 0 or 3.3),5.6)
+	end
+end
+
+function encounters.carousel(c,z,length,variant)
+	local span = (length-14)/3
+	for i=1,3 do
+		local row = z+7+(i-0.5)*span
+		local x = (if (i+variant)%2==0 then 1 else -1)*2.3
+		local diameter = span-2.45
+		hazard(c,"spin",x,0,row,0,{size=v(1.4,diameter,diameter),speed=(i%2==0 and -1 or 1)*0.86,color=c.colors.rim})
+		hazard(c,"sweep",x,0,row,i*1.67,{size=v(diameter-1.9,0.63,0.94),y=0.59,speed=0.98})
+	end
+	flaggedLane(c,-11.6,z+7,z+length-7,5.2)
+end
+
+function encounters.piers(c,z,length,variant)
+	local span = (length-14)/4
+	for i=1,4 do
+		local x = (if (i+variant)%2==0 then 1 else -1)*2.85
+		local first = z+7+(i-1)*span
+		local top = ({0,0.75,1.35,0.5})[i]
+		ledge(c,first,first+span-(i==4 and 0 or 3.4),13.15,x,top)
+		part(c,"Pier support",x,-3.85,first+4.2,v(3.6,7,3.6),c.colors.rock)
+		ledge(c,first,first+span-(i==4 and 0 or 2.7),6,11.7,0)
+	end
+end
+
+function encounters.blink(c,z,length,variant)
+	local span = (length-14)/4
+	for i=1,4 do
+		local row = z+7+(i-0.5)*span
+		local x = (if (i+variant)%2==0 then 1 else -1)*2.25
+		hazard(c,"vanish",x,0,row,i*1.1,{size=v(12,1.4,span-2.8),period=6.4,open=1.75,color=c.colors.rim})
+		ledge(c,row-span/2,row+span/2-2.3,5.7,-11.95,0)
+	end
+end
+
+function encounters.shoves(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
+	local row = z+length/2
+	local width = 27
 	for _, side in {-1,1} do
-		light(c,"Ferry track",side*6.7,-1.65,z+20.5,v(0.38,0.16,26.8),c.colors.lane)
-		for i=1,3 do
-			part(c,"Ferry track brace",side*6.7,-3.25,z+9+11*i,v(0.75,3.2,0.75),ink)
-		end
+		light(c,"Crack Zone edge",side*width/2,0.045,row,v(0.3,0.09,length-24),red)
 	end
-	return 43,width
+	gate(c,"CRACK ZONE · SHOVES ENABLED",z+10,width,amber)
+	table.insert(c.zones,{z=c.z+row,extent=length/2-12,width=width/2})
+	bay(c,z+length-8,28)
 end
 
-function sections.tilts(c,z,index)
-	local width=16
-	banks(c,z,46,width,6,6)
-	for i=1,2 do
-		obstacle(c,"tilt",i%2==index%2 and -1.65 or 1.65,0,z+15.7+(i-1)*14.8,index+i*2.1,{
-			size=v(11.8,1.9,11.8),y=-0.95,range=0.19,speed=1.13,color=c.colors.rim,
-		})
-	end
-	return 46,width
-end
-
-function sections.swing(c,z,index)
-	local width=15
-	deck(c,z,z+39,width)
-	for i=1,2 do
-		local row=z+12.1+(i-1)*14.8
+function encounters.lifts(c,z,length,variant)
+	local span = (length-14)/3
+	for i=1,3 do
+		local row = z+7+(i-0.5)*span
+		local x = (if (i+variant)%2==0 then 1 else -1)*2.7
+		hazard(c,"moving",x,0.67,row,i*1.85,
+			{size=v(13.85,1.4,span-2.75),range=1.15,speed=0.91,axis=Vector3.yAxis,color=c.colors.rim})
+		ledge(c,row-span/2,row+span/2-2.2,6.4,11.2,0)
 		for _, side in {-1,1} do
-			part(c,"Pendulum stanchion",side*9,8,row,v(1,16,1),ink)
+			part(c,"Lift columns",x+side*7.7,2.55,row,v(0.65,8,0.65),c.colors.rock)
 		end
-		part(c,"Pendulum crossbeam",0,16,row,v(19.5,1.15,1.15),ink)
-		obstacle(c,"pendulum",0,0,row,index+i*2.3,{size=v(4.6,4.6,4.6),range=7.8,speed=1.26})
-		if i==1 then waitingBay(c,row+7.4,width) end
 	end
-	return 39,width
 end
 
-function sections.duel(c,z)
-	local width=14.5
-	deck(c,z,z+37,width)
+function encounters.gust(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
+	for i=1,3 do
+		local row = z+8+i*(length-21)/4
+		local side = if (i+variant)%2==0 then 1 else -1
+		hazard(c,"wind",side*4.5,0,row,i,{size=v(17,10,11),axis=Vector3.xAxis*-side,speed=19,color=c.colors.rim})
+		for offset=-2,2,2 do
+			light(c,"Gust direction dash",side*4.5+offset,0.051,row+offset*0.75,v(1.1,0.09,0.42),c.colors.rim)
+		end
+		part(c,"Windbreak",side*12,1.5,row,v(2.6,3,8.1),c.colors.rock,true)
+		bay(c,row-6.25,28)
+	end
+end
+
+function encounters.boost(c,z,length,variant)
+	deck(c,z,z+length,arenaWidth)
+	for i=1,3 do
+		local side = if (i+variant)%2==0 then 1 else -1
+		local row = z+8+i*(length-21)/4
+		hazard(c,"launch",side*5.7,0,row-3.1,i,{size=v(6,0.44,5.8),y=0.22,speed=35,color=c.colors.lane})
+		part(c,"Hop barrier",side*5.7,0.92,row+2,v(6.7,1.84,0.8),c.colors.rock,true)
+		hazard(c,"pulse",-side*6,0,row+2,i*2.4,{size=v(11.1,0.22,3),period=5.15,open=1.23,color=ink})
+		bay(c,row-7.1,28)
+	end
+end
+
+function encounters.slide(c,z,length,variant)
+	local side = if variant%2==0 then 1 else -1
+	local x = side*6.6
+	local first, top, last = z+7,z+length*0.34,z+length-7
+	ramp(c,x,first,top,12.3,0,4.4)
+	ramp(c,x,top,last,12.3,4.4,0)
+	hazard(c,"slide",x,2,(top+last)/2,0,{size=v(10.4,9,last-top-2),speed=22,color=c.colors.rim})
+	for _, sideEdge in {-1,1} do
+		part(c,"Slide edge",x+sideEdge*5.9,2.2,(top+last)/2,v(0.34,0.32,last-top),c.colors.rim,false,nil,
+			CFrame.Angles(math.atan2(4.4,last-top),0,0))
+	end
+	local span = (last-first)/3
+	for i=1,3 do
+		ledge(c,first+(i-1)*span,first+i*span-(i==3 and 0 or 3.4),10.6,-x+(i%2==0 and -1.7 or 1.7),0)
+	end
+end
+
+function encounters.switchback(c,z,length,variant)
+	local start, span = z+7,(length-14)/5
+	for i=1,5 do
+		local first = start+(i-1)*span
+		local x = (if variant%2==0 then 1 else -1)*({0,4.6,7.3,4.6,0})[i]
+		local top = ({0,1.6,3.35,1.6,0})[i]
+		ledge(c,first,first+span-(i==5 and 0 or 1.65),15,x,top)
+		part(c,"Climb column",x,-3.6,first+span/2,v(2.8,7,2.8),c.colors.rock)
+	end
+end
+
+function encounters.ice(c,z,length,variant)
+	local floor = deck(c,z,z+length,arenaWidth,0,0,rgb("a8d8e5"))
+	floor.CustomPhysicalProperties = PhysicalProperties.new(1,0.135,0)
+	floor.Material = Enum.Material.Ice
+	for i=1,3 do
+		local row = z+9+i*(length-24)/4
+		local side = if (i+variant)%2==0 then 1 else -1
+		hazard(c,"snowball",side*5.1,0,row,i*2.4,{range=7.8,speed=1.35,color=cream})
+		part(c,"Grippy snow shelf",-side*8,0.08,row-1.5,v(8.4,0.16,7.9),cream,true)
+	end
+end
+
+function encounters.gravity(c,z,length,variant)
+	local first, span = z+7,(length-14)/4
+	for i=1,4 do
+		local row = first+(i-0.5)*span
+		local x = (if (i+variant)%2==0 then 1 else -1)*3.25
+		local top = (i%2)*1.15
+		local size = span-3.45
+		ledge(c,row-size/2,row+size/2,14,x,top)
+		hazard(c,"gravity",x,top,row,i,{size=v(12,11,size),y=5.5,speed=41,color=c.colors.lane})
+		light(c,"Lift field marker",x,top+0.048,row,v(0.09,5.6,5.6),c.colors.lane,cylinder,vertical)
+	end
+	flaggedLane(c,-12.6,z+7,z+length-7,4.3)
+end
+
+local chapters = {
+	-- Each chapter places three differently authored encounters under one set piece.
+	expedition = {"Expedition camp","weave","piers","pistons"},
+	idolRoom = {"Open the sun vault","locks","carousel","hotFloor"},
+	boulderRun = {"Boulder escape: use the side refuges","boulderLane","piers","boulderLane"},
+	cartTracks = {"Minecart dispatch: ride or take the ledges","rafter","belts","rafter"},
+	waterfall = {"Waterfall crossing","gust","balance","slide"},
+	sunExit = {"The mountain opens","switchback","boost","locks"},
+	rootway = {"Roots over the ravine","weave","balance","switchback"},
+	floodgates = {"Floodgates: wait for the green signal","locks","hotFloor","slide"},
+	relicGallery = {"Lantern gallery","pistons","switchback","hammers"},
+	crackBridge = {"Expedition relay bridge","piers","shoves","balance"},
+	turningDoors = {"Clockwork stone doors","locks","sweepers","carousel"},
+	harbor = {"Coastal village and the hidden trapdoor","weave","piers","locks"},
+	seaSlide = {"Cavern spillway","slide","locks","slide"},
+	rigging = {"Cross the rigging","hammers","balance","gust"},
+	ghostShip = {"The ship under the mountain","rafter","balance","hammers"},
+	reefExit = {"Last boat through the sea gate","locks","rafter","boost"},
+	smuggler = {"Smuggler's lookout","pistons","switchback","locks"},
+	tidePools = {"Low tide crossings","blink","slide","piers"},
+	fieldStation = {"Field research station","weave","lifts","pistons"},
+	migration = {"Creature migration: watch the trail","migration","gust","migration"},
+	researchLift = {"Lift to canopy command","lifts","switchback","belts"},
+	fossilBasin = {"Fossil terraces","switchback","piers","boulderLane"},
+	canopyExit = {"Get to the canopy rescue platform","gust","switchback","boost"},
+	canopyLift = {"Ride the canopy lifts","lifts","gust","rafter"},
+	candyWorks = {"Candy workshop conveyor","belts","bouncers","weave"},
+	chocolateRiver = {"Chocolate river barge","slide","rafter","balance"},
+	mixingRoom = {"Giant mixers","carousel","sweepers","belts"},
+	frostingLine = {"Frosting presses","pistons","rollers","boost"},
+	sugarExit = {"Catch the last delivery belt","belts","locks","boost"},
+	furnace = {"Boiler test loop","hotFloor","locks","rollers"},
+	caramelLift = {"Caramel cooling towers","lifts","balance","belts"},
+	skiVillage = {"Alpine outpost","weave","slide","ice"},
+	avalanche = {"Avalanche alleys","ice","boulderLane","ice"},
+	iceCaves = {"Crystal caves","blink","locks","switchback"},
+	gondola = {"Mountain gondola","rafter","lifts","gust"},
+	frostSpan = {"Span over frostfall","balance","piers","ice"},
+	summitExit = {"Final whiteout","ice","switchback","boost"},
+	skyGarden = {"Floating gardens","piers","weave","gust"},
+	gustGates = {"Forecast: strong crosswind","gust","locks","boost"},
+	cloudSteps = {"Stairways in the clouds","switchback","blink","lifts"},
+	airships = {"A fleet on the wind","rafter","gust","balance"},
+	ringway = {"Ringway transit","carousel","piers","gravity"},
+	skyExit = {"Sky bell finale","boost","gust","switchback"},
+	rooftop = {"Roof garden sprint","switchback","piers","weave"},
+	signalYard = {"Switchyard: watch signal bars","locks","hotFloor","belts"},
+	maglev = {"Maglev train crossing","rafter","belts","pistons"},
+	arcade = {"Arcade alleys","bouncers","blink","pistons"},
+	overpass = {"Billboard overpass","lifts","switchback","gust"},
+	neonExit = {"Race the city power surge","belts","hotFloor","boost"},
+	orbitalDock = {"Orbital docking bay","locks","rafter","boost"},
+	gravityLab = {"Gravity reboot in progress","gravity","blink","gravity"},
+	airlock = {"Emergency pressure doors","locks","gust","hotFloor"},
+	cargoSpin = {"Rotating cargo ring","carousel","balance","sweepers"},
+	satellites = {"Satellite array","blink","piers","gravity"},
+	launchExit = {"Escape shuttle launch","locks","boost","belts"},
+	crownEntry = {"Championship mission control","sweepers","locks","boost"},
+	crownFerry = {"Transfer to the gold capsule","rafter","gravity","carousel"},
+	crownTower = {"Launch tower climb","lifts","switchback","gust"},
+	crownFinish = {"Final ascent","belts","locks","boost"},
+}
+
+local function tree(c,x,z,height,tint)
+	part(c,"Storybook trunk",x,(height-6)/2-3,z,v(height*0.14,height-6,height*0.14),rgb("78563e"))
+	part(c,"Storybook canopy",x,height-8,z,v(height*0.76,height*0.44,height*0.71),tint,false,ball)
+	part(c,"Canopy lobe",x+height*0.18,height-9,z+height*0.1,v(height*0.52,height*0.34,height*0.55),tint,false,ball)
+end
+
+local function pillars(c,x,z,height)
+	part(c,"Column pedestal",x,-0.35,z,v(5.8,1.3,6),c.colors.rock)
+	part(c,"Carved column",x,height/2,z,v(3.7,height,3.6),c.colors.rock)
+	part(c,"Lintel stone",x,height,z,v(6,1.35,5.6),c.colors.rim)
+end
+
+local function templeScene(c,z,chapter,index)
 	for _, side in {-1,1} do
-		light(c,"Crack Zone edge",side*(width/2-0.3),0.04,z+18.5,v(0.34,0.09,26),red)
-		for i=1,5 do
-			part(c,"Warning hatch",side*(width/2-0.95),0.045,z+7.5+5.4*(i-1),v(1.3,0.07,0.24),amber,false,nil,CFrame.Angles(0,side*0.62,0))
-		end
+		for i=1,3 do tree(c,side*(26+i*3),z+(i-2)*34,26+i*3,rgb(i%2==0 and "78984d" or "4b8652")) end
 	end
-	marking(c,z+5.5,width-0.5,0,red)
-	marking(c,z+31.5,width-0.5,0,red)
-	gate(c,"CRACK ZONE",z+5.5,width,amber)
-	table.insert(c.zones,{z=c.z+18.5,extent=13,width=width/2})
-	return 37,width
-end
-
-function sections.blink(c,z,index)
-	local width=16
-	banks(c,z,49,width,6,6)
-	gate(c,"LAND ON SOLID TILES",z+2,16,c.colors.rim)
-	deck(c,z+21,z+28,8.8)
-	for i,row in {z+13.5,z+35.5} do
-		obstacle(c,"vanish",0,0,row,index*0.63+i*1.86,{size=v(11,1.8,9.4),y=-0.9,period=5.8,open=1.55,color=c.colors.rim})
+	if chapter == "waterfall" or chapter == "sunExit" or chapter == "floodgates" then
 		for _, side in {-1,1} do
-			light(c,"Ghost tile mount",side*5.4,-0.8,row,v(0.42,0.35,7),c.colors.lane)
+			local x = side*24
+			part(c,"Aqueduct bluff",x,10,z+14,v(11,37,43),c.colors.rock)
+			for i=1,4 do
+				local veil = part(c,"Waterfall veil",x+(i-2)*2.4,9,z-8+(i%2)*1.7,v(2.8,34,1.55),rgb(i%2==0 and "a0ebde" or "48bcae"))
+				veil.Transparency = 0.19
+			end
+			for i=1,4 do
+				part(c,"Waterfall foam",x+(i-2.5)*3,-3.2,z-10,v(6,2.8,5),rgb("dbfff5"),false,ball)
+			end
 		end
-	end
-	return 49,width
-end
-
-function sections.heat(c,z,index)
-	local width=15
-	deck(c,z,z+41,width)
-	for i=1,3 do
-		local row=z+8+(i-1)*12.5
-		obstacle(c,"pulse",0,0,row,index*0.55+i*1.2,{size=v(width+0.25,0.22,4.65),period=4.6,open=1.25,color=c.colors.deck})
-		marking(c,row-2.65,width-0.5,0,c.colors.rim)
-		if i<3 then waitingBay(c,row+6.25,width) end
-	end
-	return 41,width
-end
-
-function sections.rollers(c,z,index)
-	local width=15
-	deck(c,z,z+39,width)
-	for i=1,3 do
-		local row=z+8+(i-1)*11.5
-		deckDots(c,0,row,width,0)
-		obstacle(c,"roller",0,0,row,index+i*1.9,{size=v(9,2.2,2.2),y=1.1,range=5.6,speed=1.35})
-		if i<3 then waitingBay(c,row+5.75,width) end
-	end
-	return 39,width
-end
-
-function sections.ice(c,z,index)
-	local width=22
-	local p=deck(c,z,z+41,width,0,0,rgb("83bdcd"))
-	p.CustomPhysicalProperties=PhysicalProperties.new(1,0.14,0)
-	p.Material=Enum.Material.Ice
-	for _, side in {-1,1} do
-		light(c,"Snowball lane",side*5.8,0.026,z+20,v(0.13,0.055,29),c.colors.lane)
-		obstacle(c,"snowball",side*5.8,0,z+20,index*0.68+side*1.8,{size=v(4.4,4.4,4.4),y=2.2,range=11.5,speed=1.25,color=cream})
-	end
-	return 41,width
-end
-
-function sections.orbit(c,z,index)
-	local width=16
-	banks(c,z,47,width,4.5,5)
-	for i=1,3 do
-		local row=z+12+i*10-10
-		local px=(i%2==index%2 and -1 or 1)*2.4
-		disc(c,px,row,4.85,c.colors.deck)
-		local radius=4.75
-		for j=1,4 do
-			local t=j*math.pi/2
-			light(c,"Orbital thruster",px+radius*math.cos(t),-0.9,row+radius*math.sin(t),v(0.7,0.45,0.7),c.colors.rim)
-		end
-	end
-	return 47,width
-end
-
-function sections.relic(c,z,index)
-	local width=15.5
-	deck(c,z,z+41,width)
-	for i=1,3 do
-		local row=z+8+(i-1)*12.5
-		obstacle(c,"pulse",0,0,row,index*0.7+i*1.2,{size=v(width,0.22,4),period=4.8,open=1.2,color=c.colors.rock})
+	elseif chapter == "cartTracks" then
 		for _, side in {-1,1} do
-			part(c,"Stone column",side*8.7,1.3,row,v(1.4,2.6,1.4),c.colors.rock)
-			light(c,"Column beacon",side*8.7,2.72,row,v(0.72,0.35,0.72),c.colors.lane)
+			for i=1,3 do
+				pillars(c,side*22,z+(i-2)*17,11)
+				light(c,"Mine signal lantern",side*19.4,10.4,z+(i-2)*17,v(0.64,0.83,0.68),c.colors.rim)
+			end
 		end
-		if i<3 then waitingBay(c,row+6.25,width) end
-	end
-	for _, side in {-1,1} do
-		part(c,"Relic pedestal",side*10.2,1.05,z+5.5,v(2.7,2.1,3.4),ink)
-		part(c,"Carved basalt face",side*10.2,3.55,z+5.5,v(2.8,3,2.1),c.colors.rock)
-		for _, eye in {-1,1} do
-			light(c,"Relic eye",side*10.2+eye*0.63,3.86,z+4.43,v(0.45,0.36,0.12),c.colors.lane)
-		end
-	end
-	return 41,width
-end
-
-function sections.chase(c,z,index)
-	local width=13
-	banks(c,z,55,width,8,10)
-	deck(c,z+8,z+45,9.8)
-	gate(c,"BOULDERS • USE THE ALCOVES",z+4.5,18,c.colors.rim)
-	for _, side in {-1,1} do
-		for _, at in {13,25,37} do
-			deck(c,z+at-3.3,z+at+3.3,5.1,side*5.6,0,c.colors.rock)
-			light(c,"Alcove lip",side*7.95,0.04,z+at,v(0.21,0.08,4.8),c.colors.lane)
-			part(c,"Alcove ruin",side*8.6,1.45,z+at,v(1.15,2.9,3.2),c.colors.rock)
-		end
-	end
-	obstacle(c,"boulder",0,0,z+28,index*0.81,{color=c.colors.rock,range=16,size=v(6.3,6.3,6.3),y=3.15,period=7.5,travel=3.55})
-	return 55,width
-end
-
-function sections.rope(c,z,index)
-	local width=15
-	banks(c,z,46,width,6,6)
-	for i=1,3 do
-		local first=10.6+(i-1)*10.1
-		local px=(i%2==index%2 and -1 or 1)*1.45
-		local top=0.18*(i%2)
-		deck(c,z+first,z+first+6.7,9.6,px,top,rgb("926648")).Material = Enum.Material.WoodPlanks
-		for _, side in {-1,1} do
-			part(c,"Rope bridge beam",px+side*3.9,-0.3+top,z+first+2.6,v(0.24,0.26,5.3),c.colors.rim)
-		end
-	end
-	for _, side in {-1,1} do
-		for _, row in {z+6,z+40} do
-			part(c,"Broken bridge pier",side*5.3,1.2,row,v(0.95,2.4,0.95),c.colors.rock)
-			part(c,"Tether",side*5.3,0.78,row+0.68,v(0.32,0.27,1.5),c.colors.rim,false,nil,CFrame.Angles(0.61,0,0))
-		end
-	end
-	return 46,width
-end
-
-local function pinball(c,z,final)
-	local width = 25
-	deck(c,z,z+45,width)
-	gate(c,final and "JACKPOT • PICK AN OPEN LANE" or "PINBALL • WAIT IN THE GREEN POCKETS",z+3,width,c.colors.rim)
-	for i=1,3 do
-		local row = z+11+i*8.5
-		local lane = if final then (i-2)*6 else 0
-		waitingBay(c,row-4,width)
-		obstacle(c,"ball",lane,0,row,i*1.8,{size=v(5,5,5),y=2.5,range=final and 5.2 or 7.5,speed=1.24,bounce=2, color=c.colors.hazard})
-		for _, side in {-1,1} do
-			part(c,"Pinball table bumper",side*13,1.2,row,v(2.7,2.7,2.7),c.colors.rim,false,Enum.PartType.Ball)
-			light(c,"Lane arrow",side*10.6,0.055,row,v(0.4,0.07,3.2),c.colors.lane)
-		end
-	end
-	return 45,width
-end
-
-function sections.pinball(c,z) return pinball(c,z,false) end
-function sections.pinballFinal(c,z) return pinball(c,z,true) end
-
-local function carousel(c,z,final)
-	local width = final and 14 or 17
-	banks(c,z,51,width,7,7)
-	gate(c,"CAROUSEL • JUMP THE SWEEP ARM",z+3,width,c.colors.rim)
-	for i=1,2 do
-		local row = z+16+i*18-18
-		deck(c,row-7,row+7,width)
-		disc(c,0,row,7.4,rgb("ffccf0"))
-		obstacle(c,"sweep",0,0,row,i*1.9,{size=v(final and 15 or 13,0.7,0.85),y=0.57,speed=final and 1.28 or 0.95,color=c.colors.hazard})
-		for j=1,8 do
-			local angle = j*math.pi/4
-			part(c,"Carousel candy lamp",math.cos(angle)*10,2,row+math.sin(angle)*7,v(0.8,0.8,0.8),c.colors.rim,false,Enum.PartType.Ball)
-		end
-	end
-	deck(c,z+23,z+27,width)
-	return 51,width
-end
-
-function sections.carousel(c,z) return carousel(c,z,false) end
-function sections.carouselFinal(c,z) return carousel(c,z,true) end
-
-local function backlot(c,z,final)
-	local width = 23
-	deck(c,z,z+42,width)
-	gate(c,"STUNT SET • FOLLOW THE OPEN SIDE",z+3,width,c.colors.rim)
-	for i=1,3 do
-		local row = z+7+i*9
-		local side = (i%2==0 and -1 or 1)*(final and -1 or 1)
-		waitingBay(c,row-4,width)
-		part(c,"Oversized foam fist housing",side*13,2,row,v(4,4,5),c.colors.rock)
-		obstacle(c,"foam",side*8,0,row,i*2,{range=3.6,size=v(7.5,3.2,2.1),y=1.6,speed=1.25,color=rgb("ff6ba8")})
-		part(c,"Open lane marker",-side*7,0.03,row,v(5,0.06,2.5),rgb("83eab7"))
-	end
-	return 42,width
-end
-
-function sections.backlot(c,z) return backlot(c,z,false) end
-function sections.backlotFinal(c,z) return backlot(c,z,true) end
-
-function sections.river(c,z,index)
-	local width = 22
-	banks(c,z,45,width,8,8)
-	gate(c,"RIVER STUDIO • RIDE OR HOP",z+3,width,c.colors.rim)
-	deck(c,z+10,z+18,7,-5,0,rgb("94724f"))
-	deck(c,z+20,z+26,9,0,0,rgb("94724f"))
-	deck(c,z+28,z+36,8,5,0,rgb("94724f"))
-	obstacle(c,"moving",7,0,z+15,index,{size=v(7,1.4,9),range=3.1,speed=0.9,color=c.colors.rim})
-	obstacle(c,"moving",-7,0,z+30,index+2,{size=v(7,1.4,9),range=3.1,speed=0.9,color=c.colors.rim})
-	return 45,width
-end
-
-function sections.hedges(c,z)
-	local width = 21
-	deck(c,z,z+41,width)
-	gate(c,"HEDGE MAZE • FOLLOW THE GAPS",z+3,width,c.colors.rim)
-	for i=1,3 do
-		local side = i%2==0 and -1 or 1
-		local row = z+6+i*9
-		part(c,"Garden hedge",side*4,2.8,row,v(13,5.6,2.1),rgb("398559"),true)
-		part(c,"Flower trim",side*4,5.58,row,v(13.2,0.32,2.2),rgb("e8a7ea"))
-		part(c,"Path marker",-side*6,0.03,row,v(4.8,0.06,2),c.colors.lane)
-	end
-	return 41,width
-end
-
-local function mushrooms(c,z,final)
-	local width = 21
-	banks(c,z,44,width,7,7)
-	gate(c,"MUSHROOM GROVE • HOP THE CAPS",z+3,width,c.colors.rim)
-	for i=1,3 do
-		local x = (i%2==0 and -1 or 1)*(final and -2.7 or 2.1)
-		local row = z+12+(i-1)*10.4
-		local top = if i==2 then 1.7 else 0.7
-		part(c,"Mushroom stalk",x,-2,row,v(5,6.2,5),cream)
-		part(c,"Mushroom cap",x,top-0.7,row,v(1.4,9,9),rgb("e95786"),true,Enum.PartType.Cylinder,CFrame.Angles(0,0,math.pi/2))
-		for _, offset in {-2.5,2.5} do
-			part(c,"Mushroom cap spots",x+offset,top+0.03,row,v(1.2,0.06,1.1),cream)
-		end
-	end
-	return 44,width
-end
-
-function sections.mushrooms(c,z) return mushrooms(c,z,false) end
-function sections.mushroomsFinal(c,z) return mushrooms(c,z,true) end
-
-function sections.foundry(c,z)
-	local width = 21
-	deck(c,z,z+45,width)
-	gate(c,"FURNACE • AMBER MEANS WAIT",z+3,width,c.colors.rim)
-	for i=1,3 do
-		local row = z+7+i*9
-		local side = i%2==0 and -1 or 1
-		waitingBay(c,row-4,width)
-		obstacle(c,"pulse",side*3,0,row,i*1.9,{size=v(14.8,0.22,4.25),period=4.65,open=1.25})
-		part(c,"Furnace copper pipe",side*12,4,row,v(2.5,8,2.5),c.colors.rim)
-	end
-	return 45,width
-end
-
-local function slalom(c,z,final)
-	local width = 25
-	deck(c,z,z+48,width)
-	gate(c,"SNOWBALL SLALOM • USE THE OUTER BANKS",z+3,width,c.colors.rim)
-	for i=1,3 do
-		local side = (i%2==0 and -1 or 1)*(final and -1 or 1)
-		local row = z+9+i*9
-		part(c,"Packed snow drift",side*3.2,1.7,row-4.7,v(9,3.4,2.3),rgb("d4f2ff"),true)
-		obstacle(c,"snowball",side*4,0,row,i*2,{size=v(4.6,4.6,4.6),y=2.3,range=5.5,speed=1.3,color=cream})
-		part(c,"Packed snow refuge",-side*8,0.03,row,v(7,0.06,5),rgb("a1e5f5"))
-		part(c,"Slalom flag",-side*11,2,row,v(0.32,4,0.32),c.colors.rim)
-	end
-	return 48,width
-end
-
-function sections.slalom(c,z) return slalom(c,z,false) end
-function sections.slalomFinal(c,z) return slalom(c,z,true) end
-
-local function moon(c,z,final)
-	local width = 18
-	banks(c,z,45,width,7,8)
-	gate(c,"MOON HOPS • JUMP IN THE GLOW",z+3,width,c.colors.rim)
-	for i=1,3 do
-		local x = (i%2==0 and -1 or 1)*(final and -2.2 or 2.2)
-		local row = z+12+i*9-9
-		disc(c,x,row,4.2,c.colors.deck)
-		obstacle(c,"gravity",x,0,row,i,{size=v(8,10,7.8),y=5,speed=45,color=c.colors.lane}).part.Transparency = 0.9
-		light(c,"Gravity pad",x,0.035,row,v(3.4,0.07,3.4),c.colors.lane)
-	end
-	return 45,width
-end
-
-function sections.moon(c,z) return moon(c,z,false) end
-function sections.moonFinal(c,z) return moon(c,z,true) end
-
-function sections.temple(c,z)
-	local width = 21
-	deck(c,z,z+44,width)
-	gate(c,"TEMPLE • DODGE INTO THE SIDE LANES",z+3,width,c.colors.rim)
-	for i=1,2 do
-		local row = z+6+i*13
-		obstacle(c,"boulder",0,0,row,i*2,{size=v(5.5,5.5,5.5),y=2.75,range=7,period=6.4,travel=2.9,color=c.colors.rock})
-		for _, side in {-1,1} do
-			part(c,"Refuge mosaic",side*7,0.03,row,v(5,0.06,9),c.colors.lane)
-			part(c,"Temple guardian",side*12,3,row,v(2.8,6,3.8),c.colors.rock)
-		end
-	end
-	return 44,width
-end
-
-local function landmark(c, island, z)
-	local colors = c.colors
-	if island=="Green Meadows" then
-		local x,y = 39,11
-		part(c,"Fair wheel support",x,y/2-1,z,v(0.8,y+3,1),colors.rock)
-		part(c,"Fair wheel axle",x,y,z,v(2.6,2.6,1.2),colors.rim,false,Enum.PartType.Ball)
-		for i=1,10 do
-			local t=math.pi*i/5
-			local dx,dy=math.cos(t)*11,math.sin(t)*11
-			part(c,"Wheel spoke",x+dx/2,y+dy/2,z,v(11,0.26,0.28),colors.rim,false,nil,CFrame.Angles(0,0,t))
-			part(c,"Gondola",x+dx,y+dy,z,v(2.8,1.6,1.9),i%2==0 and colors.hazard or colors.lane)
-			light(c,"Gondola light",x+dx,y+dy-0.38,z-0.96,v(1.6,0.18,0.13),cream)
-		end
-	elseif island=="The Egg Cooker" then
-		for i=1,5 do
-			local width = 24-3*i
-			part(c,"Furnace shell",39,i*2.9-6,z,v(4,width,width),colors.rock,false,Enum.PartType.Cylinder,CFrame.Angles(0,0,math.pi/2))
-		end
-		light(c,"Furnace mouth",39,10.1,z,v(8.8,0.54,8.8),colors.hazard)
-		for i=1,4 do
-			part(c,"Foundry stack",39+i*3.3,7+i*2,z+5,v(2.05,15,2.05),ink)
-		end
-	elseif island=="Frozen Eggs" then
-		for i=1,5 do
-			local height=28-3.1*i
-			part(c,"Glacier crown",34+i*2.6,height/2-7,z-i*1.25,v(6,height,9),i%2==0 and colors.sky or colors.rock,false,nil,CFrame.Angles(0,0,-0.21)).Material=Enum.Material.Ice
-		end
-	elseif island=="Eggstraterrestrial" then
-		part(c,"Relay planet",43,21,z,v(24,24,24),colors.rock,false,Enum.PartType.Ball)
-		part(c,"Dust ring",43,21,z,v(0.55,39,39),colors.rim,false,Enum.PartType.Cylinder,CFrame.Angles(0,0,1.2)).Transparency=0.32
+		part(c,"Mine gallery arch",0,15,z,v(48,2.5,2.1),c.colors.rock)
 	else
-		for i=1,6 do
-			local width=32-i*3.2
-			part(c,"Temple terrace",40,3.08*i-8,z,v(width,3.4,width),colors.rock)
-			part(c,"Temple trim",40,3.08*i-6.35,z,v(width+0.8,0.36,width+0.8),colors.rim)
+		local x = index%2==0 and 37 or -37
+		for i=1,5 do
+			local width = 34-i*4.3
+			part(c,"Sun temple terrace",x,i*3.8-5,z,v(width,4,width),c.colors.rock)
 		end
-		part(c,"Temple shrine",40,14.2,z,v(8.4,6.9,8.9),ink)
-		light(c,"Shrine portal",40,14.2,z-4.48,v(3.25,4.25,0.14),colors.lane)
+		part(c,"Sun altar",x,17.7,z,v(8.7,4.2,8),c.colors.deck)
+		light(c,"Sun seal",x,19.4,z-4.15,v(2.5,2.5,0.5),c.colors.rim)
+		for _, side in {-1,1} do pillars(c,side*19,z-18,11.2) end
 	end
 end
 
-local function decorate(c, island, length)
-	local colors = c.colors
-	local water = part(c,"Island basin",0,-10.3,length/2,v(132,0.9,length+90),colors.ground)
-	water.Material = if island=="The Egg Cooker" then Enum.Material.Neon else Enum.Material.SmoothPlastic
-	water.Transparency = if island=="Eggstraterrestrial" then 0.18 else 0.05
-	local random = Random.new(c.level*193+41)
-	landmark(c,island,math.floor(length*0.38))
-	for _, side in {-1,1} do
-		for i=1,math.ceil(length/21) do
-			local z = i*21+random:NextNumber(-7,7)-10
-			local x = side*random:NextNumber(21,51)
-			local tall = random:NextNumber(3,13)
-			local spread = random:NextNumber(4,11)
-			local rotation = CFrame.Angles(0,random:NextNumber(0,math.pi),random:NextNumber(-0.29,0.29))
-			if island=="The Egg Cooker" then
-				part(c,"Basalt outcrop",x,-8+tall/2,z,v(spread,tall,spread*0.8),colors.rock,false,nil,rotation)
-				light(c,"Magma seam",x,-8+tall/2,z-spread/2,v(spread*0.65,0.32,0.55),colors.rim)
-				if i%3==0 then
-					part(c,"Flue stack",x,-7+tall,z,v(12,spread*0.48,spread*0.48),ink,false,Enum.PartType.Cylinder,CFrame.Angles(0,0,math.pi/2))
-				end
-			elseif island=="Frozen Eggs" then
-				part(c,"Ice shelf",x,-8.3,z,v(spread*2.2,2.6,spread*1.4),cream,false,nil,rotation)
-				part(c,"Glacier shard",x,-8+tall/2,z-2,v(spread/2,tall,spread*0.6),colors.rock,false,nil,rotation).Material = Enum.Material.Ice
-			elseif island=="Eggstraterrestrial" then
-				local radius=spread*0.72
-				part(c,"Planet",x,-6+tall,z,v(radius,radius,radius),i%2==0 and colors.rock or colors.rim,false,Enum.PartType.Ball)
-				if i%3==0 then
-					part(c,"Planet annulus",x,-6+tall,z,v(0.17,radius*1.75,radius*1.75),colors.sky,false,Enum.PartType.Cylinder,CFrame.Angles(0,0,1.26)).Transparency=0.45
-				end
-				light(c,"Pin star",x+side*9,-4+tall*1.1,z+3,v(0.46,0.46,0.46),colors.lane)
-			elseif island=="Sunken Ruins" then
-				part(c,"Fallen colonnade",x,-8+tall/2,z,v(spread*0.33,tall,spread*0.33),colors.rock,false,nil,rotation)
-				part(c,"Masonry pad",x,-8.3,z,v(spread*1.32,2.2,spread*1.17),colors.rock)
-				if i%4==0 then
-					light(c,"Ruin lamp",x,-7.3+tall,z,v(0.34,0.64,0.34),colors.lane)
-				end
-			else
-				part(c,"Meadow bluff",x,-8,z,v(spread*2,6,spread*2.5),colors.rock,false,Enum.PartType.Ball)
-				part(c,"Tree trunk",x,-7+tall/2,z,v(0.94,tall,0.94),rgb("74513c"))
-				part(c,"Tree crown",x,-6+tall,z,v(spread*0.82,spread,spread*0.82),i%2==0 and rgb("91a95b") or rgb("cfab5c"),false,Enum.PartType.Ball)
+local function ship(c,x,z,scale)
+	for i=1,6 do
+		local row = z+(i-3.5)*9*scale
+		local width = (20-math.abs(i-3.5)*4.4)*scale
+		part(c,"Timber hull",x,-3.6,row,v(width,6.2*scale,9.2*scale),rgb("79563f"),
+			false,nil,CFrame.Angles(0,0,(i-3.5)*0.019))
+		part(c,"Gold gunwale",x,0.2,row,v(width+0.45,0.4,9.3*scale),c.colors.rim)
+	end
+	for i=1,2 do
+		local row = z+(i-1.5)*21*scale
+		local height = (i==1 and 26 or 20)*scale
+		part(c,"Pirate mast",x,height/2,row,v(1.35,height,1.35),rgb("72503f"))
+		part(c,"Crossyard",x,height*0.78,row,v(16*scale,0.8,0.88),c.colors.rock)
+		part(c,"Wind-filled sail",x,height*0.56,row-0.8,v(12.6*scale,9.4*scale,2.15),cream,false,ball)
+		part(c,"Sail jewel",x,height*0.56,row-1.9,v(2.4*scale,2.4*scale,0.42),c.colors.rim,false,nil,CFrame.Angles(0,0,math.pi/4))
+	end
+end
+
+local function pirateScene(c,z,chapter,index)
+	if chapter == "ghostShip" or chapter == "rigging" then
+		-- The concealed ship hangs directly over the playable hold and cargo routes.
+		ship(c,0,z,1.15)
+		for _, side in {-1,1} do
+			part(c,"Cavern face",side*32,7,z,v(14,32,41),rgb("506476"),false,nil,CFrame.Angles(0,0,side*0.18))
+		end
+	elseif chapter == "harbor" or chapter == "reefExit" then
+		for _, side in {-1,1} do
+			for i=1,2 do
+				local x, row = side*(27+i*6),z+(i-1.5)*20
+				part(c,"Harbor cottage",x,4,row,v(9,8,11),c.colors.rock)
+				part(c,"Tile roof",x,9,row,v(10.4,4,12),rgb(i%2==0 and "428586" or "b77056"),false,ball)
+				light(c,"Cottage window",x-2.6,3.8,row-5.6,v(1.5,1.8,0.16),cream)
+			end
+		end
+		ship(c,index%2==0 and 34 or -34,z+28,0.86)
+	else
+		for _, side in {-1,1} do
+			for i=1,4 do
+				part(c,"Sea grotto spire",side*(21+i*3),8,z+(i-2)*15,v(7+i,23+i*3,10),c.colors.rock,false,ball)
+				part(c,"Grotto tip",side*(20+i*3),19,z+(i-2)*15,v(3.5,11,5),rgb("7aa0a7"),false,ball)
 			end
 		end
 	end
 end
 
-function Courses.course(level, x, z)
+local function prehistoricScene(c,z,chapter)
+	for _, side in {-1,1} do
+		for i=1,4 do
+			tree(c,side*(22+i*5),z+(i-2.5)*20,24+i*5,rgb(i%2==0 and "719e48" or "589555"))
+		end
+	end
+	if chapter == "migration" or chapter == "fossilBasin" then
+		local x = -37
+		local tint = chapter == "migration" and rgb("638a4e") or rgb("e3ca9e")
+		part(c,"Longneck body",x,6,z,v(19,16,31),tint,false,ball)
+		part(c,"Longneck neck",x,15,z-11,v(7,22,8),tint,false,ball)
+		part(c,"Longneck head",x,24,z-14,v(8.8,6.7,9),tint,false,ball)
+		part(c,"Longneck eye",x+3.7,25.1,z-16,v(1.35,1.35,1.35),ink,false,ball)
+		for _, a in {-1,1} do
+			for _, b in {-1,1} do part(c,"Longneck leg",x+a*4.9,-1,z+b*8,v(5.4,13,5.4),tint,false,ball) end
+		end
+	else
+		for _, side in {-1,1} do
+			local x = side*26
+			part(c,"Field research cabin",x,5,z,v(13.5,9.8,22),c.colors.rock)
+			part(c,"Cabin visor",x,10,z,v(14.5,1.12,22.7),c.colors.rim)
+			for i=1,3 do
+				light(c,"Observation glass",x-side*6.8,6.6,z+(i-2)*5,v(0.18,3.2,4),rgb("a9ebc4"))
+			end
+		end
+	end
+end
+
+local function factoryScene(c,z,chapter)
+	for _, side in {-1,1} do
+		for i=1,3 do
+			local x, row = side*(22+i*3),z+(i-2)*20
+			part(c,"Recipe vat",x,4,row,v(10,9+i*0.5,9+i*0.5),c.colors.rock,false,cylinder,vertical)
+			part(c,"Vat rim",x,9,row,v(0.63,10.3,10.3),c.colors.rim,false,cylinder,vertical)
+			part(c,"Candy turbine",x,11.8,row,v(5,5,5),rgb(i%2==0 and "ef8496" or "9edbd5"),false,ball)
+			part(c,"Vat pipe",x+side*4.8,8,row+3.2,v(2,14,2),ink)
+		end
+	end
+	local glaze = chapter == "furnace" and rgb("f79d5c") or rgb("ffbbe1")
+	for _, j in {-1,1} do
+		part(c,"Overhead frosting pipe",j*9,14,z+2,v(2.15,2.15,42),glaze)
+		part(c,"Overhead frosting manifold",j*9,13.4,z-20,v(4.8,4.8,4.8),glaze,false,ball)
+	end
+end
+
+local function frozenScene(c,z,chapter)
+	for _, side in {-1,1} do
+		for i=1,5 do
+			local x,row = side*(22+i*4),z+(i-3)*16
+			local tall = 21+i*3
+			part(c,"Glacier ridge",x,tall*0.32-5,row,v(12,tall,15),rgb(i%2==0 and "72b2cc" or "a9dce9"),
+				false,nil,CFrame.Angles(0,i*0.22,side*i*0.08)).Material = Enum.Material.Ice
+			part(c,"Glacier frost crown",x,tall*0.72-5,row,v(11.8,6.5,13.4),cream,false,ball)
+		end
+	end
+	if chapter == "gondola" or chapter == "summitExit" then
+		part(c,"Gondola station beam",0,13,z,v(48,2.05,2.1),ink)
+		pillars(c,-20,z,13)
+		pillars(c,20,z,13)
+	end
+end
+
+local function cloudScene(c,z,chapter,index)
+	for _, side in {-1,1} do
+		for i=1,3 do
+			local x,row = side*(25+i*7),z+(i-2)*33
+			part(c,"Cloudbank",x,-5,row,v(27,9+i,16),rgb(i%2==0 and "d5dafa" or "f4eef8"),false,ball)
+			part(c,"Sky borough",x,2,row,v(10,16+i*2,10),c.colors.rock,false,cylinder,vertical)
+			part(c,"Borough cap",x,11+i,row,v(6,10.7,10.7),c.colors.rim,false,cylinder,vertical)
+		end
+	end
+	if chapter == "airships" or chapter == "skyExit" then
+		local x = index%2==0 and -31 or 31
+		ship(c,x,z,0.77)
+		part(c,"Airship balloon",x,28,z,v(22,13,33),rgb("edb5d5"),false,ball)
+		for _, side in {-1,1} do
+			part(c,"Airship rope",x+side*5,19,z+side*8,v(0.32,17,0.32),ink)
+		end
+	end
+end
+
+local function neonScene(c,z,chapter)
+	for _, side in {-1,1} do
+		for i=1,4 do
+			local x,row = side*(23+i*3),z+(i-2.5)*21
+			local height = 18+(i%3)*6
+			part(c,"Metropolis tower",x,height/2-4,row,v(10.5,height,12),c.colors.rock)
+			for j=1,3 do
+				light(c,"Tower floor light",x-side*5.3,height-j*4.2,row,v(0.17,0.75,8.8),c.colors.rim)
+			end
+			part(c,"Rooftop cap",x,height-3,row,v(11.2,1.3,12.6),ink)
+		end
+	end
+	if chapter == "maglev" or chapter == "neonExit" or chapter == "signalYard" then
+		for i=1,3 do
+			local row = z+(i-2)*14
+			part(c,"Parked courier express",24,-0.65,row,v(8.2,7.2,13.4),rgb("d280c3"),false,ball)
+			light(c,"Express window",19.97,0.46,row,v(0.11,2.1,6.8),rgb("ffc671"))
+		end
+	end
+end
+
+local function galacticScene(c,z,chapter,index)
+	for _, side in {-1,1} do
+		local x = side*(27+(index%2)*8)
+		part(c,"Station habitat",x,11,z-10,v(17,17,21),c.colors.rock,false,ball)
+		part(c,"Habitat equator",x,11,z-10,v(0.85,24,24),ink,false,cylinder,vertical)
+		for i=1,4 do
+			light(c,"Habitat window",x+side*6.15,9+i,z-11+(i%2)*3,v(1.3,0.77,1.3),c.colors.rim)
+		end
+		part(c,"Solar wing",x+side*14,13,z+15,v(16,0.55,8.8),c.colors.rock,false,nil,CFrame.Angles(0,0,side*0.31))
+	end
+	if chapter == "launchExit" or chapter == "crownFinish" then
+		local hull = chapter == "crownFinish" and rgb("f5c659") or cream
+		part(c,"Escape capsule",0,17,z+32,v(14,28,17),hull,false,ball)
+		part(c,"Capsule glass",0,22,z+23,v(5.8,5.8,1.8),c.colors.deck,false,ball)
+		for _, side in {-1,1} do
+			part(c,"Capsule fin",side*8.9,11,z+33,v(8.2,2.5,6.1),c.colors.rock,false,nil,CFrame.Angles(0,0,-side*0.34))
+		end
+	end
+end
+
+local scenes = {
+	temple=templeScene,pirate=pirateScene,prehistoric=prehistoricScene,factory=factoryScene,
+	frozen=frozenScene,cloud=cloudScene,neon=neonScene,galactic=galacticScene,
+}
+
+local function addRelic(c,z,world,spec)
+	local side = if c.level%2==0 then 1 else -1
+	local x = side*20.4
+	deck(c,z-2.8,z+6.9,10,x,0)
+	part(c,"Relic plinth",x,0.44,z+2,v(3.5,0.9,3.5),c.colors.rock)
+	local tint = c.colors.rim
+	local body
+	if world.key == "temple" then
+		body = part(c,world.relic,x,1.65,z+2,v(1.45,1.85,1.25),tint,false,ball)
+		for _, dx in {-0.33,0.33} do part(c,"Idol eye",x+dx,1.9,z+1.45,v(0.21,0.23,0.1),ink) end
+		part(c,"Idol pedestal cuff",x,1.02,z+2,v(1.65,0.25,1.3),tint)
+	elseif world.key == "pirate" then
+		body = part(c,world.relic,x,1.63,z+2,v(0.38,1.75,1.75),tint,false,cylinder,CFrame.Angles(0,math.pi/2,0))
+		part(c,"Compass needle",x,1.63,z+1.74,v(0.24,1.1,0.12),ink,false,nil,CFrame.Angles(0,0,math.pi/5))
+	elseif world.key == "prehistoric" then
+		body = part(c,world.relic,x,1.63,z+2,v(1.45,1.86,1.15),tint,false,ball)
+		for _, dx in {-0.46,0,0.46} do part(c,"Fossil toe",x+dx,1.82,z+1.54,v(0.37,0.43,0.14),ink,false,ball) end
+		part(c,"Fossil heel",x,1.43,z+1.47,v(0.77,0.48,0.18),ink,false,ball)
+	elseif world.key == "factory" or world.key == "neon" then
+		body = part(c,world.relic,x,1.58,z+2,v(1.52,1.38,0.43),tint,false,nil,CFrame.Angles(0,0,0.2))
+		for dx=-1,1 do part(c,"Engraved circuit",x+dx*0.33,1.58,z+1.74,v(0.13,0.7,0.12),ink) end
+	elseif world.key == "cloud" then
+		body = part(c,world.relic,x,1.63,z+2,v(0.32,1.36,1.36),tint,false,cylinder,CFrame.Angles(0,math.pi/2,0))
+		part(c,"Seal wing",x-0.74,1.55,z+2,v(1.04,0.6,0.28),cream,false,ball,CFrame.Angles(0,0,-0.25))
+		part(c,"Seal wing",x+0.74,1.55,z+2,v(1.04,0.6,0.28),cream,false,ball,CFrame.Angles(0,0,0.25))
+	else
+		body = part(c,world.relic,x,1.65,z+2,v(0.92,1.7,0.92),tint,false,nil,CFrame.Angles(math.pi/6,math.pi/4,math.pi/8))
+		part(c,"Crystal satellite",x+0.6,1.18,z+1.7,v(0.57,0.74,0.55),tint,false,nil,CFrame.Angles(0.18,0.4,0.3))
+	end
+	body.Material = Enum.Material.Neon
+	local halo = Instance.new("PointLight",body)
+	halo.Color, halo.Brightness, halo.Range = tint, 0.9, 7.5
+	table.insert(c.relics,{id=spec.key,position=body.Position,part=body})
+end
+
+local function launchYard(c,spec,world)
+	deck(c,-18,8,38)
+	gate(c,spec.name,-15,36,c.colors.rim)
+	for i=1,15 do
+		local x = (i-8)*2.15
+		part(c,"Launch position",x,0.03,-4.0,v(1.48,0.06,5.6),i%2==0 and c.colors.lane or c.colors.rim)
+	end
+	scenes[world.key](c,12,spec.sections[1],1)
+end
+
+local function landscape(c,world)
+	for first=-52,c.length+52,280 do
+		local span = math.min(283,c.length+53-first)
+		local floor = part(c,"World backdrop",0,-10.55,first+span/2,v(144,0.8,span),c.colors.ground)
+		floor.Material = if world.key == "factory" or world.key == "galactic" then Enum.Material.SmoothPlastic else Enum.Material.Glass
+		if world.key == "galactic" or world.key == "cloud" then floor.Transparency = 0.54 end
+	end
+end
+
+function Courses.course(level,x,z)
 	local spec = assert(Levels[level],"Missing course")
+	local world = assert(Levels.worldByKey[spec.worldKey],"Missing world")
 	local model = Instance.new("Model")
 	model.Name = spec.name
-	local c = {model=model,x=x,z=z,level=level,pace=spec.pace,colors=assert(themes[spec.island]),obstacles={},route={},zones={}}
-	local cursor = 10
-	deck(c,-17,cursor,35)
-	gate(c,spec.name,-15,33,c.colors.rim)
-	for i=1,6 do
-		local laneX = (i-3.5)*4.5
-		part(c,"Launch lane",laneX,0.03,-5.6,v(2.65,0.06,10.6),i%2==0 and c.colors.lane or c.colors.rim)
+	local c = {
+		model=model,x=x,z=z,level=level,worldKey=spec.worldKey,pace=spec.pace,colors=colorsFor(world),
+		obstacles={},route={},zones={},relics={},finishWidth=17.7,
+	}
+	launchYard(c,spec,world)
+	model:SetAttribute("CinematicStart",v(x-33,17,z-24))
+	model:SetAttribute("CinematicEnd",v(x+25,12,z-7))
+	model:SetAttribute("CinematicFocus",v(x,7,z+25))
+	local cursor = 8
+	local hasZone = table.find(spec.sections,"crackBridge") ~= nil
+	for index, chapter in ipairs(spec.sections) do
+		local layout = assert(chapters[chapter],chapter)
+		gate(c,string.upper(layout[1]),cursor+2,30,c.colors.rim)
+		for beat=2,#layout do
+			local length = 77+((level*3+index*5+beat*7)%17)
+			if layout[beat] == "shoves" then length = 42 end
+			deck(c,cursor,cursor+7,deckWidth)
+			deck(c,cursor+length-7,cursor+length,deckWidth)
+			encounters[layout[beat]](c,cursor,length,index*3+beat*5+level)
+			if beat==3 then scenes[world.key](c,cursor+length/2,chapter,index) end
+			cursor += length
+		end
+		deck(c,cursor,cursor+13,deckWidth)
+		bay(c,cursor+7,deckWidth-1)
+		if index==2+level%4 and not spec.championship then addRelic(c,cursor+4,world,spec) end
+		table.insert(c.route,{
+			z=z+cursor+3,x=x,width=deckWidth/2+0.9,minY=0.45,maxY=17.5,
+			checkpoint=v(x,3.65,z+cursor+7),
+		})
+		cursor += 13
+		if index==3 and not hasZone then
+			encounters.shoves(c,cursor,35,0)
+			cursor += 35
+		end
 	end
-	marking(c,9.25,34,0,c.colors.lane)
-	for i, name in spec.sections do
-		local build = assert(sections[name],name)
-		local length, width = build(c,cursor,i)
-		cursor += length
-		table.insert(c.route,{z=z+cursor-1.05,x=x,width=width/2+1.5,minY=0.45,maxY=12.5})
-	end
-	deck(c,cursor,cursor+22,35)
+	deck(c,cursor,cursor+24,36)
 	c.length = cursor+9
 	c.finish = z+c.length
 	finishGate(c)
 	for i=1,14 do
 		for row=0,1 do
-			part(c,"Checkered finish stripe",(i-7.5)*2.36,0.035,c.length+(row-0.5)*1.2,v(2.36,0.07,1.2),(i+row)%2==0 and cream or ink)
+			part(c,"Checkered finish stripe",(i-7.5)*2.48,0.035,c.length+(row-0.5)*1.2,v(2.48,0.07,1.2),(i+row)%2==0 and cream or ink)
 		end
 	end
-	decorate(c,spec.island,c.length)
+	landscape(c,world)
 	model.Parent = workspace
 	Obstacles.activate(c)
+	Obstacles.update(c,0,{},function() end)
 	return c
 end
 

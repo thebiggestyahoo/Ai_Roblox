@@ -1,7 +1,6 @@
 local DataStoreService = game:GetService("DataStoreService")
 local RunService = game:GetService("RunService")
 local Http = game:GetService("HttpService")
-local Rules = require(game:GetService("ReplicatedStorage"):WaitForChild("EggShared").RaceRules)
 local token = Http:GenerateGUID(false)
 local D = {sessions = {}}
 local store
@@ -11,13 +10,27 @@ local function getStore()
 	return store
 end
 
+local function clone(value)
+	if typeof(value) ~= "table" then return value end
+	local copy = {}
+	for k, child in value do copy[k] = clone(child) end
+	return copy
+end
+
 local function normalize(raw)
 	local data = typeof(raw) == "table" and raw or {}
-	for key, fallback in {coins=0, wins=0, xp=0, unlocked=1, deliveries=0} do
+	for key, fallback in {coins=0, legacyCoins=0, wins=0, championships=0, xp=0, unlocked=1, deliveries=0, cartonRevision=0, championCartonsOpened=0} do
 		local value = data[key]
-		data[key] = if typeof(value) == "number" and value >= fallback then math.floor(value) else fallback
+		data[key] = if typeof(value) == "number" and value >= fallback and value < math.huge then math.floor(value) else fallback
 	end
-	for _, key in {"skins","trails","records"} do
+	if data.economyVersion ~= 2 then
+		-- Old play rewards and Robux coin packs previously used the same balance.
+		-- Preserve that balance for fixed-price trails and use earned coins for cartons.
+		data.legacyCoins += data.coins
+		data.coins = 0
+		data.economyVersion = 2
+	end
+	for _, key in {"skins","trails","records","favorites","medals","relics","museum","earnedSkins","cartonCredits","collections","seasons","questStats","titlesOwned","accessories","victories","banners","entitlements","placements"} do
 		if typeof(data[key]) ~= "table" then data[key] = {} end
 	end
 	data.skins.Classic = true
@@ -96,8 +109,7 @@ local function unappliedCoins(receipts, applied)
 end
 
 local function persist(player, session, release, receiptId, coinAmount)
-	local snapshot = table.clone(session.data)
-	for _, field in {"skins","trails","records"} do snapshot[field] = table.clone(snapshot[field]) end
+	local snapshot = clone(session.data)
 	local ok, result = retry(function()
 		return getStore():UpdateAsync(key(player), function(old)
 			if typeof(old) ~= "table" or old.owner ~= token then return nil end
@@ -109,14 +121,14 @@ local function persist(player, session, release, receiptId, coinAmount)
 			-- A prior write can commit even when its response is lost. Carry those
 			-- grants forward in every save before acknowledging them in memory.
 			local savedData = table.clone(snapshot)
-			savedData.coins += unappliedCoins(receipts, session.receipts)
+			savedData.legacyCoins += unappliedCoins(receipts, session.receipts)
 			if release then return {data=savedData, receipts=receipts} end
 			return {owner=token, expires=os.time()+180, data=savedData, receipts=receipts}
 		end)
 	end)
 	if result then
 		local receipts = receiptLedger(result)
-		session.data.coins += unappliedCoins(receipts, session.receipts)
+		session.data.legacyCoins += unappliedCoins(receipts, session.receipts)
 		session.receipts = receipts
 	end
 	session.saving = false
@@ -132,23 +144,59 @@ function D.save(player, release)
 		return
 	end
 	if not beginWrite(player,session,release,release) then return end
-	local balance = session.data.coins
+	local balance = session.data.legacyCoins
 	local ok, result = persist(player,session,release)
 	if ok and not result and not release and player.Parent then
 		player:Kick("Your courier profile moved to another server. Please rejoin.")
 	end
 	if release then D.sessions[player] = nil end
-	if result and not release and session.data.coins ~= balance and player.Parent then D.summary(player) end
+	if result and not release and session.data.legacyCoins ~= balance and player.Parent then D.summary(player) end
+end
+
+-- Reward mutations are synchronous before the first service yield. A single
+-- session owns the profile lock and each save serializes after the prior write.
+function D.transact(player, mutate)
+	local session = D.sessions[player]
+	if not session or session.closing or session.readOnly then return false end
+	if session.temporary then return true, mutate(session.data) end
+	if not beginWrite(player,session,true,false) then return false end
+	if session.readOnly then
+		session.saving = false
+		return false
+	end
+	local before = clone(session.data)
+	local ok, changed, value = pcall(mutate,session.data)
+	if not ok then
+		session.data = before
+		session.saving = false
+		session.readOnly = true
+		warn("Courier reward transaction:",changed)
+		if player.Parent then player:Kick("Your progress is syncing. Please rejoin in a moment.") end
+		return false
+	end
+	if not changed then
+		session.saving = false
+		return true, changed, value
+	end
+	local _, result = persist(player,session,false)
+	if not result then
+		-- A timed-out write may have committed. Keep the same mutated snapshot
+		-- and close the session so retrying this request cannot reroll a reward.
+		session.readOnly = true
+		if player.Parent then player:Kick("Your progress is syncing. Please rejoin in a moment.") end
+		return false
+	end
+	return true, changed, value
 end
 
 function D.canPurchase(player)
 	local session = D.sessions[player]
-	return session ~= nil and not session.temporary and not session.closing
+	return session ~= nil and not session.temporary and not session.closing and not session.readOnly
 end
 
 function D.grantCoinPack(player, receiptId, coins)
 	local session = D.sessions[player]
-	if not session or session.temporary or not beginWrite(player,session,true,false) then return false end
+	if not session or session.temporary or session.readOnly or not beginWrite(player,session,true,false) then return false end
 	if session.receipts[receiptId] ~= nil then
 		session.saving = false
 		return true, false
@@ -163,26 +211,11 @@ function D.summary(player)
 	local data = D.get(player)
 	if not data then return end
 	player:SetAttribute("Coins",data.coins)
+	player:SetAttribute("LegacyCoins",data.legacyCoins)
+	player:SetAttribute("Championships",data.championships)
 	player:SetAttribute("Wins",data.wins)
 	player:SetAttribute("XP",data.xp)
 	player:SetAttribute("Unlocked",data.unlocked)
 end
 
-function D.finish(player, level, time, perfect, place, competitive)
-	local data = D.get(player)
-	if not data then return 0, false end
-	local reward, personal = Rules.complete(data,level,time,perfect,place,competitive)
-	data.deliveries += 1
-	D.summary(player)
-	return reward, personal
-end
-
-function D.crown(player)
-	local data = D.get(player)
-	if not data then return 0 end
-	data.wins += 1
-	data.coins += 100
-	D.summary(player)
-	return 100
-end
 return D

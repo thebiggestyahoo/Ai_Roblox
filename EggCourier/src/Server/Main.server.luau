@@ -3,8 +3,10 @@ local RS = game:GetService("ReplicatedStorage")
 local Run = game:GetService("RunService")
 local Physics = game:GetService("PhysicsService")
 local Debris = game:GetService("Debris")
+local Http = game:GetService("HttpService")
 local Shared = RS:WaitForChild("EggShared")
 local Config = require(Shared.Config)
+local Economy = require(Shared.EconomyConfig)
 local Levels = require(Shared.Levels)
 local Rules = require(Shared.RaceRules)
 local World = require(script.Parent.World)
@@ -14,6 +16,8 @@ local Data = require(script.Parent.Data)
 local Eggs = require(script.Parent.Eggs)
 local Shop = require(script.Parent.Shop)
 local CoinPacks = require(script.Parent.CoinPacks)
+local Progression = require(script.Parent.Progression)
+local Social = require(script.Parent.Social)
 
 local remote = Instance.new("RemoteEvent")
 remote.Name = "CourierEvent"
@@ -21,7 +25,10 @@ remote.Parent = Shared
 local queue, practiceQueue, selected, rate = {}, {}, {}, {}
 local shopping = {}
 local racers = {}
-local contenders = {}
+local contenders, roster = {}, {}
+local raceMode = "royale"
+local privateRound = false
+local championship, tournamentId
 local random = Random.new()
 local course
 local stage, deadline, level = "Lobby", 0, 1
@@ -41,10 +48,8 @@ local function send(player, kind, value, extra)
 end
 
 local function profile(player)
-	local d = Data.get(player)
-	if d then send(player,"Profile",{
-		skins=d.skins, trails=d.trails, skin=d.skin, trail=d.trail, title=d.title, records=d.records, deliveries=d.deliveries,
-	}) end
+	local summary = Progression.summary(player)
+	if summary then send(player,"Profile",summary) end
 end
 
 local function rootOf(player)
@@ -65,23 +70,46 @@ local function progress(r)
 	return math.clamp((r.progress-course.z)/(course.finish-course.z),0,0.99)
 end
 
-local function queuedCount()
+local function queuedCount(ticket)
 	local count = 0
-	for _ in queue do count += 1 end
+	for _, entry in queue do
+		if not ticket or entry.mode == ticket.mode and entry.private == ticket.private then count += 1 end
+	end
 	return count
 end
 
 local function state(player)
-	local r = racers[player]
+	local r, ticket = racers[player], queue[player]
+	local spectate, standings = {}, {}
+	if stage == "Race" and not privateRound then
+		for other, entry in racers do
+			if other ~= player and not entry.finished then table.insert(spectate,other.UserId) end
+		end
+		table.sort(spectate)
+	end
+	for _, entry in roster do
+		table.insert(standings,{
+			userId=entry.userId, name=entry.name, skin=entry.skin, status=entry.status, place=entry.place,
+		})
+	end
+	table.sort(standings,function(a,b)
+		if a.place ~= b.place then return (a.place or math.huge) < (b.place or math.huge) end
+		return a.userId < b.userId
+	end)
+	player:SetAttribute("CourseRacing",stage == "Race" and r ~= nil and not r.finished)
 	send(player,"State",{
-		stage=stage, deadline=deadline, level=level, racing=r ~= nil, queued=queue[player] == true,
+		stage=stage, deadline=deadline, level=level, racing=r ~= nil, queued=ticket ~= nil,
 		practiceQueued=practiceQueue[player] ~= nil, selected=selected[player] or 1,
 		practice=practiceMode, solo=entrants == 1, result=r and r.result,
-		total=entrants, slots=slots, qualified=resultCount, scoreboard=stage == "Results" and results or nil,
-		room=contenders[player] == true, tournament=tournament, duel=duel, heat=heat, heats=Rules.heatCount,
+		total=entrants, slots=slots, qualified=math.min(resultCount,slots),
+		scoreboard=stage == "Results" and results or nil,
+		room=roster[player] ~= nil or contenders[player] == true, tournament=tournament,
+		duel=duel, heat=heat, heats=Rules.heatCount,
 		draftStarted=draftStarted, maps=mapPlan, victor=victor,
-		queuedCount=queuedCount(), capacity=Config.maxPlayers,
-		roundName=if duel then "Final duel" elseif heat > 0 then "Heat " .. heat elseif tournament then "Map draw" else nil,
+		queuedCount=queuedCount(ticket), capacity=Config.maxPlayers,
+		roundName=if duel then "Championship" elseif heat > 0 then "Round " .. heat elseif tournament then "Map draw" else nil,
+		mode=raceMode, queueMode=ticket and ticket.mode, spectate=spectate, standings=standings,
+		championship=championship,
 	})
 end
 
@@ -96,34 +124,60 @@ end
 
 local function finishDisplay()
 	for _, label in course.finishDisplay or {} do
-		label.Text = ("%02d / %02d IN"):format(resultCount,slots)
+		label.Text = ("%02d / %02d %s"):format(math.min(resultCount,slots),slots,duel and "CHAMPION" or tournament and "QUALIFIED" or "FINISHED")
 	end
 end
 
 local function restartPractice(player,r,at)
 	local d = Data.get(player)
 	if not d or racers[player] ~= r or stage ~= "Race" then return end
-	r.hp, r.recovering, r.perfect = 3, false, true
+	local checkpoint = r.checkpoint or r.spawn
+	r.hp, r.recovering, r.perfect = 3, false, false
 	r.immune = at + Config.protection
 	r.lastHazard, r.shovedBy, r.shovedAt = nil, nil, nil
-	r.routeIndex, r.progress, r.zone = 1, course.z, nil
-	r.previous, r.lastSample, r.attemptStarted = r.spawn, at, at
-	r.speedOrigin, r.speedAt = r.spawn, at
-	move(player,r.spawn,false)
+	r.routeIndex = r.checkpointIndex or 1
+	r.progress, r.zone = math.max(course.z,checkpoint.Z), nil
+	r.previous, r.lastSample = checkpoint, at
+	r.speedOrigin, r.speedAt = checkpoint, at
+	move(player,checkpoint,false)
 	Eggs.attach(player,d,3)
-	send(player,"FX","Restart")
+	send(player,"FX","Restart",r.checkpoint ~= nil)
 end
 
 local function eliminate(player,r,reason)
 	if r.finished then return end
 	r.finished, r.recovering, r.zone = true, false, nil
 	contenders[player] = nil
-	r.result = {out=true,dnf=true,reason=reason,hp=r.hp,progress=progress(r),practice=practiceMode}
+	local entry = roster[player]
+	if entry then entry.status = "Eliminated" end
+	r.result = {out=true,dnf=true,reason=reason,hp=r.hp,progress=progress(r),practice=practiceMode,mode=raceMode}
 	move(player,lobby,false)
 	local data = Data.get(player)
 	if data then Eggs.attach(player,data,3) end
 	send(player,"FX","Out",reason)
-	state(player)
+	broadcast()
+end
+
+local function releaseTicket(ticket, departing)
+	if not ticket then return end
+	for _, member in ticket.group do
+		if queue[member] == ticket then
+			queue[member] = nil
+			if member ~= departing and departing then send(member,"Notice","Your party left the race queue") end
+		end
+	end
+end
+
+local function setTicket(group, mode, map, private)
+	local ticket = {group=table.clone(group), mode=mode, map=map, private=private == true, at=now(workspace)}
+	for _, player in ticket.group do
+		queue[player],practiceQueue[player] = ticket,nil
+	end
+	return ticket
+end
+
+local function playable(map)
+	return type(map) == "number" and map%1 == 0 and Levels[map] ~= nil and map ~= Levels.final
 end
 
 local function failedAttempt(player,r,reason,at)
@@ -207,8 +261,9 @@ local function shove(player)
 	end
 end
 
-local function updated(player)
+local function updated(player,reveal)
 	profile(player)
+	if reveal and not racers[player] then send(player,"BoxReward",reveal) end
 	local d = Data.get(player)
 	if d and not racers[player] then Eggs.attach(player,d,3) end
 end
@@ -223,10 +278,11 @@ local function action(player, key, id)
 	if not d then return end
 	if key == "hello" then profile(player); state(player); return end
 	if key == "shove" then shove(player); return end
+	local r = racers[player]
 	if key == "lobby" then
-		local r = racers[player]
-		if contenders[player] and (not r or not r.result or not r.result.champion) then return end
-		queue[player],practiceQueue[player] = nil,nil
+		if contenders[player] and (not r or not r.result or r.result.advanced) then return end
+		releaseTicket(queue[player],player)
+		practiceQueue[player] = nil
 		if r and (r.finished or practiceMode or stage == "Results") then
 			racers[player] = nil
 			move(player,lobby,false)
@@ -235,58 +291,73 @@ local function action(player, key, id)
 		broadcast()
 		return
 	end
-	if contenders[player] and (not racers[player] or not racers[player].result or not racers[player].result.champion) then return end
-	if key == "next" and racers[player] and (racers[player].finished or stage == "Results") then
+	if contenders[player] and (not r or not r.result or r.result.advanced) then return end
+	if (key == "next" or key == "queue" or key == "quick" or key == "practice") and r and r.finished then
 		racers[player] = nil
 		move(player,lobby,false)
 		Eggs.attach(player,d,3)
 	end
 	if racers[player] then return end
-	if key == "queue" or key == "next" then
-		queue[player],practiceQueue[player] = true,nil
+	if key == "queue" or key == "quick" or key == "next" then
+		local mode = if key == "quick" or id == "quick" then "quick" else "royale"
+		releaseTicket(queue[player],player)
+		setTicket({player},mode,selected[player],false)
 		broadcast()
 		return
 	elseif key == "practice" then
 		local choice = tonumber(id) or selected[player] or 1
-		if Levels[choice] then
-			practiceQueue[player],queue[player] = choice,nil
+		if playable(choice) then
+			releaseTicket(queue[player],player)
+			practiceQueue[player] = {map=choice, at=now(workspace)}
 			broadcast()
 		end
 		return
 	elseif key == "choose" then
 		local n = tonumber(id)
-		if n and n % 1 == 0 and Levels[n] and n <= d.unlocked then
-			selected[player] = n
-		end
-	elseif key == "box" then
-		local message, reward, rarity = Shop.openBox(player,id)
-		if reward then
-			profile(player)
-			send(player,"BoxReward",reward,rarity)
-			task.spawn(Data.save,player,false)
-		else
-			send(player,"Notice",message)
-		end
-	elseif key == "skin" or key == "title" or key == "trail" then
-		if shopping[player] then return end
-		shopping[player] = true
-		local message, pass = Shop.select(player,key,id)
-		shopping[player] = nil
-		send(player,"Notice",message)
-		if pass then send(player,"Pass",pass) end
-		updated(player)
-	elseif key == "coins" then
-		local product = CoinPacks.prompt(player,id)
-		if product then send(player,"Product",product)
-		else send(player,"Notice","This coin pack is unavailable") end
+		if playable(n) then selected[player] = n end
 	elseif key == "aura" and d.wins > 0 then
 		player:SetAttribute("WinnerAura",player:GetAttribute("WinnerAura") == false)
 		Eggs.aura(player,d)
 	elseif key == "Shop" or key == "Courses" then
 		send(player,"Open",key)
+	elseif key == "carton" or key == "season" or key == "favorite" or key == "premium"
+		or key == "skin" or key == "title" or key == "trail" or key == "quest"
+		or key == "accessory" or key == "victory" or key == "banner" then
+		if shopping[player] then return end
+		shopping[player] = true
+		local message,reveal,pass = Shop.action(player,key,id)
+		shopping[player] = nil
+		if message then send(player,"Notice",message) end
+		if reveal then send(player,"BoxReward",reveal) end
+		if pass then send(player,"Pass",pass) end
+		updated(player)
 	end
 	state(player)
 end
+
+Social.start({
+	canUse=function(player)
+		return not racers[player] and not contenders[player] and not queue[player] and not practiceQueue[player]
+	end,
+	canSpectate=function(viewer,target)
+		return stage == "Race" and not privateRound and not (racers[viewer] and not racers[viewer].finished)
+			and racers[target] ~= nil and not racers[target].finished
+	end,
+	queue=function(group, mode, map, private)
+		if #group == 0 or #group > Config.maxPlayers or (mode ~= "quick" and mode ~= "royale") then
+			return false,"Invalid race"
+		end
+		for _, player in group do
+			if not Data.get(player) or racers[player] or contenders[player] or queue[player] or practiceQueue[player] then
+				return false,"Everyone needs to be available in the lobby"
+			end
+		end
+		if private and mode ~= "quick" then return false,"Private races use Quick Race" end
+		setTicket(group,mode,playable(map) and map or selected[group[1]],private)
+		broadcast()
+		return true,private and "Private race queued" or "Party queued"
+	end,
+})
 
 lobby,demo,leaderboard,podium = World.lobby(action)
 for _, instance in workspace:GetChildren() do
@@ -294,8 +365,8 @@ for _, instance in workspace:GetChildren() do
 end
 
 remote.OnServerEvent:Connect(function(player,key,id)
-	if typeof(key) ~= "string" or #key > 12 or (id ~= nil and (typeof(id) ~= "string" or #id > 32)) then return end
-	if (key == "skin" or key == "title" or key == "trail" or key == "choose" or key == "coins" or key == "box") and id == nil then return end
+	if typeof(key) ~= "string" or #key > 16 or (id ~= nil and (typeof(id) ~= "string" or #id > 90)) then return end
+	if (key == "skin" or key == "title" or key == "trail" or key == "choose" or key == "carton" or key == "premium") and id == nil then return end
 	local clock = os.clock()
 	local limits = rate[player] or {}
 	rate[player] = limits
@@ -324,7 +395,7 @@ local function spawned(player,character)
 	if r and not r.finished then
 		if stage == "Race" then
 			if not r.recovering then failedAttempt(player,r,"Character reset",now(workspace)) end
-			if r.recovering then move(player,r.spawn,true) end
+			if r.recovering then move(player,r.checkpoint or r.spawn,true) end
 			return
 		elseif stage == "Preparation" or stage == "Countdown" then
 			move(player,r.spawn,true)
@@ -351,7 +422,13 @@ end
 Players.PlayerAdded:Connect(join)
 for _, player in Players:GetPlayers() do task.spawn(join,player) end
 Players.PlayerRemoving:Connect(function(player)
-	racers[player],queue[player],practiceQueue[player],selected[player],rate[player] = nil,nil,nil,nil,nil
+	releaseTicket(queue[player],player)
+	local entry, r = roster[player], racers[player]
+	if entry then
+		entry.status = "Disconnected"
+		if r then entry.roundResult = r end
+	end
+	racers[player],practiceQueue[player],selected[player],rate[player] = nil,nil,nil,nil
 	contenders[player],shopping[player] = nil,nil
 	broadcast()
 	Data.save(player,true)
@@ -395,68 +472,85 @@ local function finishBurst(root)
 	Debris:AddItem(point,1.5)
 end
 
-local function publishFinish(player,r)
-	finishDisplay()
-	if r.result.champion then
-		player:SetAttribute("WinnerAura",true)
-		Eggs.aura(player,Data.get(player))
-		task.spawn(Data.save,player,false)
+local function award(player, place)
+	local entry = roster[player]
+	if not entry or entry.place then return end
+	entry.place = place
+	if player.Parent ~= Players or not Data.get(player) then return end
+	local reward = Progression.place(player,place,"royale",tournamentId) or {}
+	local r = racers[player]
+	if r and r.result then
+		r.result.tournamentPlace = place
+		r.result.coins = (r.result.coins or 0)+(reward.coins or 0)
+		r.result.xp = (r.result.xp or 0)+(reward.xp or 0)
 	end
+	profile(player)
+	return reward
+end
+
+local function crown(player,r,reason)
+	if victor then return end
+	victor = player.DisplayName
+	local entry = roster[player]
+	entry.status = "Champion"
+	local reward = award(player,1) or {}
+	local d = Data.get(player)
+	local championships = d and d.championships or 0
+	local championCarton = Economy.cartonById.champion
+	local cartons = 0
+	if d and championCarton then
+		local unlocked = math.floor(championships/championCarton.wins) - d.championCartonsOpened
+		cartons = math.clamp(unlocked,0,#Economy.odds(championCarton,d.skins))
+	end
+	r.result.champion,r.result.advanced,r.result.reason = true,false,reason
+	championship = {
+		userId=player.UserId,name=player.DisplayName,skin=entry.skin,
+		coins=reward.coins or 0,xp=reward.xp or 0,time=r.result.time,reason=reason,
+		victory=d and d.victory,banner=d and d.banner,championships=championships,championCartonsAvailable=cartons,
+	}
+	player:SetAttribute("WinnerAura",true)
+	if d then
+		Eggs.aura(player,d)
+		Eggs.celebrate(player,d)
+	end
+end
+
+local function claimUnfinishedChampion(player,r,reason)
+	r.finished,r.finishPlace,r.zone = true,1,nil
+	r.result = {place=1,hp=r.hp,coins=0,completed=false,mode=raceMode}
+	crown(player,r,reason)
+	resultCount = 1
+	table.insert(results,{name=player.DisplayName,place=1,completed=false,userId=player.UserId})
+	finishDisplay()
 	finishBurst(rootOf(player))
 	send(player,"FX","Finish",r.result)
-	profile(player)
-	broadcast()
 end
 
 local function finish(player,r,time)
 	r.finished, r.zone = true, nil
 	resultCount += 1
-	local coins, personal = 0,false
+	r.finishPlace = resultCount
+	local entry = roster[player]
+	if entry then entry.status = duel and "Finished" or "Qualified" end
 	local data = Data.get(player)
 	local previousBest = data and data.records[Rules.recordKey(level)]
-	if not practiceMode then
-		coins,personal = Data.finish(player,level,time,r.perfect,resultCount,duel)
-	end
-	if duel then victor = player.DisplayName end
+	local reward = if privateRound then {} else Progression.finish(player,{
+		level=level,mode=raceMode,time=time,perfect=r.perfect,place=resultCount,
+	}) or {}
 	r.result = {
-		place=resultCount,time=time,hp=r.hp,coins=coins,record=personal,practice=practiceMode,
-		advanced=tournament and not duel, champion=duel, completed=true,
-		perfect=r.perfect, previousBest=not practiceMode and previousBest or nil,
-		deliveries=not practiceMode and data and data.deliveries or nil,
+		place=resultCount,time=time,hp=r.hp,coins=reward.coins or 0,record=reward.record == true,
+		practice=practiceMode,advanced=tournament and not duel,completed=true,perfect=r.perfect,
+		previousBest=previousBest,medal=reward.medal,xp=reward.xp or 0,mode=raceMode,
 	}
-	table.insert(results,{name=player.DisplayName,time=time,place=resultCount})
-	publishFinish(player,r)
+	if duel and not victor then crown(player,r,"First across the finish") end
+	table.insert(results,{name=player.DisplayName,time=time,place=resultCount,userId=player.UserId})
+	finishDisplay()
+	finishBurst(rootOf(player))
+	send(player,"FX","Finish",r.result)
+	profile(player)
+	if not privateRound then task.spawn(Data.save,player,false) end
+	broadcast()
 	move(player,Vector3.new(course.x+math.clamp((resultCount-6)*2,-12,12),3.65,course.finish+5),true)
-end
-
-local function crown(player,r,reason)
-	if victor or not contenders[player] then return end
-	victor = player.DisplayName
-	local result = r.result
-	if not result then
-		r.finished, r.zone = true, nil
-		resultCount += 1
-		local elapsed = math.min(ends,now(workspace)) - r.attemptStarted
-		result = {place=1,hp=r.hp,coins=0,time=elapsed,completed=false}
-		r.result = result
-		table.insert(results,{name=player.DisplayName,time=elapsed,place=1,completed=false})
-		move(player,Vector3.new(course.x,3.65,course.finish+5),true)
-	end
-	result.champion, result.advanced, result.reason = true, false, reason
-	result.coins += Data.crown(player)
-	publishFinish(player,r)
-end
-
-local function checkDuel()
-	if not duel or victor then return end
-	local survivor, entry
-	for player,r in racers do
-		if not r.finished then
-			if survivor then return end
-			survivor,entry = player,r
-		end
-	end
-	if survivor then crown(survivor,entry,"Last racer standing") end
 end
 
 local tickAccumulator, hudAccumulator, boardAccumulator = 0,0,0
@@ -503,33 +597,63 @@ Run.Heartbeat:Connect(function(dt)
 			if gate then
 				if Rules.crossing(previous,p,gate.z,gate.x,gate.width,gate.minY,gate.maxY) then
 					r.routeIndex += 1
+					if practiceMode and gate.checkpoint then
+						r.checkpoint,r.checkpointIndex = gate.checkpoint,r.routeIndex
+						send(player,"FX","Checkpoint",r.routeIndex-1)
+					end
 					gate = course.route[r.routeIndex]
 				end
 			else
-				local fraction = Rules.crossing(previous,p,course.finish,course.x,15.8,0.5,12.5)
+				local fraction = Rules.crossing(previous,p,course.finish,course.x,course.finishWidth or 15.8,course.finishMinY or 0.5,course.finishMaxY or 12.5)
 				if fraction and r.hp > 0 then
 					local arrival = previousTime + (at-previousTime)*fraction
 					if arrival <= ends then table.insert(candidates,{player=player,r=r,arrival=arrival}) end
 				end
 			end
 			r.progress = math.clamp(p.Z,course.z,gate and gate.z or course.finish)
+			r.bestProgress = math.max(r.bestProgress or course.z,r.progress)
 			r.zone = zoneFor(root)
+			if practiceMode then
+				for _, relic in course.relics or {} do
+					if not r.seenRelics[relic.id] and (p-relic.position).Magnitude <= (relic.radius or 4.2) then
+						r.seenRelics[relic.id] = true
+						if Progression.relic(player,Levels[level].worldKey,relic.id) then
+							profile(player)
+							send(player,"FX","Relic",relic.id)
+						end
+					end
+				end
+			end
 		end
 		table.sort(candidates,function(a,b)
 			if a.arrival == b.arrival then return a.player.UserId < b.player.UserId end
 			return a.arrival < b.arrival
 		end)
+		local finishCapacity = duel and entrants or slots
 		for _, entry in candidates do
-			if resultCount == slots then break end
+			if resultCount >= finishCapacity then break end
 			finish(entry.player,entry.r,entry.arrival-entry.r.attemptStarted)
 		end
-		if resultCount == slots then
+		if resultCount >= finishCapacity then
 			for player, r in racers do
 				if not r.finished then eliminate(player,r,"All finish slots claimed") end
 			end
 		else
 			Obstacles.update(course,at-started,racers,damage)
-			checkDuel()
+			if duel and not victor then
+				local only, count
+				count = 0
+				for player, r in racers do
+					if not r.finished then
+						only = player
+						count += 1
+					end
+				end
+				if count == 1 and entrants > 1 then
+					claimUnfinishedChampion(only,racers[only],"Last racer standing")
+					broadcast()
+				end
+			end
 		end
 		if hudAccumulator >= 0.2 then
 			hudAccumulator = 0
@@ -545,7 +669,7 @@ Run.Heartbeat:Connect(function(dt)
 				local r=entry.r
 				send(entry.player,"Race",{
 					hp=r.hp, place=resultCount+place, total=entrants, zone=r.zone ~= nil,
-					cooldown=r.cooldown, progress=progress(r), slots=slots, qualified=resultCount,
+					cooldown=r.cooldown, progress=progress(r), slots=slots, qualified=math.min(resultCount,slots),
 					recover=r.recovering and r.penaltyUntil or 0,
 				})
 			end
@@ -574,47 +698,105 @@ local function waitPhase()
 	while now(workspace) < deadline do task.wait(0.1) end
 end
 
-local function ready(list)
-	local found = {}
-	for player in list do
-		local root = rootOf(player)
-		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-		if Data.get(player) and not shopping[player] and root and hum and hum.Health > 0 then table.insert(found,player) end
-	end
-	table.sort(found,function(a,b) return a.UserId < b.UserId end)
-	return found
+local function readyPlayer(player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	return player.Parent == Players and Data.get(player) ~= nil and not shopping[player]
+		and rootOf(player) ~= nil and humanoid ~= nil and humanoid.Health > 0
 end
 
-local function qualifiedPlayers()
-	local advancing = {}
-	for player,r in racers do
-		if contenders[player] and r.result and r.result.advanced then
-			table.insert(advancing,{player=player,place=r.result.place})
-		end
+local function eligibleTicket(ticket)
+	for _, player in ticket.group do
+		if queue[player] ~= ticket or not readyPlayer(player) then return false end
 	end
-	table.sort(advancing,function(a,b) return a.place < b.place end)
-	local players = {}
-	for _, entry in advancing do table.insert(players,entry.player) end
-	return players
+	return true
 end
 
-local function settleDuel()
-	if not duel or victor then return end
-	local leader, best
-	local tied = false
-	for player,r in racers do
-		if r.finished then continue end
-		if not best or r.progress > best.progress or (r.progress == best.progress and r.hp > best.hp) then
-			leader,best,tied = player,r,false
-		elseif r.progress == best.progress and r.hp == best.hp then
-			tied = true
+local function buildGroup(first)
+	local tickets, seen = {}, {}
+	local group = {}
+	for _, ticket in queue do
+		if not seen[ticket] and ticket.mode == first.mode and not ticket.private and eligibleTicket(ticket) then
+			seen[ticket] = true
+			table.insert(tickets,ticket)
 		end
 	end
-	if tied then return "Final tied at the time limit" end
-	if leader then
-		crown(leader,best,"Led when time ran out")
-		return "Lost the final tiebreak"
+	table.sort(tickets,function(a,b)
+		if a.at ~= b.at then return a.at < b.at end
+		return a.group[1].UserId < b.group[1].UserId
+	end)
+	for _, ticket in tickets do
+		if #group+#ticket.group <= Config.maxPlayers then
+			for _, player in ticket.group do table.insert(group,player) end
+		end
 	end
+	return group
+end
+
+local function rankRound(group)
+	local ranked = {}
+	for _, player in group do
+		local entry = roster[player]
+		local r = racers[player] or (entry and entry.roundResult)
+		if r then
+			local active = player.Parent == Players and not r.finished
+			table.insert(ranked,{
+				player=player, userId=player.UserId, active=active, finishPlace=r.finishPlace,
+				progress=r.bestProgress or r.progress, hp=r.hp, race=r,
+			})
+		end
+	end
+	return Rules.rank(ranked)
+end
+
+local function settleChampionship(ranked)
+	if victor then return end
+	local first = ranked[1]
+	if not first or not first.active then return end
+	claimUnfinishedChampion(first.player,first.race,"Led the field when time ran out")
+end
+
+local function settleRound(group)
+	local ranked = rankRound(group)
+	local advancing, promoted = {}, {}
+	if tournament then
+		if duel then
+			settleChampionship(ranked)
+		else
+			for _, line in ranked do
+				if #advancing >= slots then break end
+				local player,r = line.player,line.race
+				if player.Parent ~= Players or (not line.finishPlace and not line.active) then continue end
+				if not line.finishPlace then
+					r.finished,r.zone = true,nil
+					r.result = {
+						place=#advancing+1,hp=r.hp,advanced=true,completed=false,mode=raceMode,
+						reason="Qualified on distance",progress=progress(r),
+					}
+					roster[player].status = "Qualified"
+					resultCount += 1
+					table.insert(results,{name=player.DisplayName,place=r.result.place,completed=false,userId=player.UserId})
+				end
+				table.insert(advancing,player)
+				promoted[player] = true
+			end
+			finishDisplay()
+		end
+	end
+	local placement = math.max(2,#advancing+1)
+	for _, line in ranked do
+		local player,r = line.player,line.race
+		if not promoted[player] and not (r.result and r.result.champion) then
+			if player.Parent == Players and not r.finished then
+				eliminate(player,r,duel and "Championship ended" or "Time ran out")
+			end
+			if tournament then
+				award(player,math.min(placement,Config.maxPlayers))
+				placement += 1
+			end
+		end
+	end
+	return advancing
 end
 
 local function runHeat(group,map,slotCount,final)
@@ -624,17 +806,20 @@ local function runHeat(group,map,slotCount,final)
 	finishDisplay()
 	local at = now(workspace)
 	for i,player in group do
-		local row = math.floor((i-1)/6)
-		local rowSize = math.min(6,#group-row*6)
-		local offset = ((i-1)%6-(rowSize-1)/2)*4.5
-		local spot = Vector3.new(course.x+offset,3.65,course.z-4-row*4)
-		racers[player] = {hp=3,routeIndex=1,spawn=spot,previous=spot,lastSample=at,
-			progress=course.z,immune=at+Config.countdown+1,cooldown=0,perfect=true}
+		local offset = if #group == 1 then 0 else ((i-1)/(#group-1)-0.5)*31
+		local spot = Vector3.new(course.x+offset,3.65,course.z-4)
+		local r = {hp=3,routeIndex=1,spawn=spot,previous=spot,lastSample=at,
+			progress=course.z,immune=at+Config.countdown+1,cooldown=0,perfect=true,seenRelics={}}
+		racers[player] = r
+		local entry = roster[player]
+		if entry then
+			entry.status,entry.roundResult = "Racing",r
+		end
 		queue[player],practiceQueue[player] = nil,nil
 		move(player,spot,true)
 		Eggs.attach(player,Data.get(player),3)
 	end
-	phase("Preparation",0.65)
+	phase("Preparation",1.7)
 	waitPhase()
 	phase("Countdown",Config.countdown)
 	waitPhase()
@@ -648,6 +833,7 @@ local function runHeat(group,map,slotCount,final)
 		if root then
 			root.Anchored = false
 			r.previous,r.lastSample,r.immune = root.Position,started,started+1.5
+			r.speedOrigin,r.speedAt = root.Position,started
 		end
 	end
 	slots = math.min(slots,live)
@@ -659,23 +845,23 @@ local function runHeat(group,map,slotCount,final)
 		if not active then break end
 		task.wait(0.15)
 	end
-	local outcome = settleDuel()
-	for player,r in racers do
-		if not r.finished then eliminate(player,r,outcome or "Time ran out") end
-	end
-	local advancing = qualifiedPlayers()
-	if #advancing == 1 then crown(advancing[1],racers[advancing[1]],"Only qualifier left") end
-	local continuing = #advancing > 1 and not victor
-	phase("Results",if continuing then Config.heatResults else Config.results)
+	local advancing = settleRound(group)
+	phase("Results",if #advancing>0 then Config.heatResults else Config.results)
 	waitPhase()
-	advancing = qualifiedPlayers()
-	if continuing and #advancing == 1 then
-		crown(advancing[1],racers[advancing[1]],"Only qualifier left")
-		phase("Results",Config.heatResults)
-		waitPhase()
+
+	local output, forfeited = {}, {}
+	for _, player in advancing do
+		if readyPlayer(player) then
+			table.insert(output,player)
+		else
+			table.insert(forfeited,player)
+		end
 	end
-	if victor then advancing = {} end
-	if #advancing < 2 then phase("Returning",0.5) end
+	for index, player in forfeited do
+		contenders[player] = nil
+		award(player,math.min(math.max(1,#output)+index,Config.maxPlayers))
+	end
+	if #output == 0 then phase("Returning",0.5) end
 	for player in racers do
 		move(player,lobby,false)
 		local data = Data.get(player)
@@ -686,66 +872,89 @@ local function runHeat(group,map,slotCount,final)
 	course.model:Destroy()
 	course = nil
 	if stage == "Returning" then waitPhase() end
-	return advancing
+	return output
 end
 
 local function runTournament(group)
 	tournament = true
+	tournamentId = Http:GenerateGUID(false)
 	local starting = #group
 	for _,player in group do
+		local data = Data.get(player)
 		contenders[player] = true
+		roster[player] = {userId=player.UserId,name=player.DisplayName,skin=data.skin,status="Ready"}
 		queue[player] = nil
 	end
-	mapPlan = Rules.drawMaps(random)
+	mapPlan = Rules.drawMaps(random,Levels)
 	draftStarted = now(workspace)
 	phase("Draft",Config.draft)
 	waitPhase()
-	local available = {}
+	local available, forfeited = {}, {}
 	for _,player in group do
-		if contenders[player] then table.insert(available,player) end
+		table.insert(if readyPlayer(player) then available else forfeited,player)
+	end
+	for i,player in forfeited do
+		contenders[player] = nil
+		award(player,math.min(math.max(1,#available)+i,Config.maxPlayers))
 	end
 	group = available
-	if #group < 2 then
-		tournament = false
-		table.clear(contenders)
-		local player = group[1]
-		if player then runHeat(group,selected[player] or 1,1,false) end
-		return
-	end
 	for index,map in mapPlan do
+		if #group == 0 then break end
+		local final = index == Rules.heatCount
+		if #group == 1 and not final then continue end
 		heat = index
-		group = runHeat(group,map,Rules.slots(starting,index,#group),false)
-		if #group < 2 then return end
+		group = runHeat(group,map,Rules.slots(starting,index,#group),final)
 	end
-	heat = Rules.heatCount+1
-	runHeat(group,mapPlan[Rules.heatCount],1,true)
+end
+
+local function nextActivity()
+	local first, adventurer
+	for _, ticket in queue do
+		if (not first or ticket.at < first.at) and eligibleTicket(ticket) then first = ticket end
+	end
+	for player, ticket in practiceQueue do
+		if (not adventurer or ticket.at < practiceQueue[adventurer].at) and readyPlayer(player) then
+			adventurer = player
+		end
+	end
+	if adventurer and (not first or practiceQueue[adventurer].at < first.at) then return nil,adventurer end
+	return first,nil
 end
 
 task.spawn(function()
 	while true do
 		table.clear(contenders)
-		tournament,duel,heat,practiceMode = false,false,0,false
-		mapPlan,draftStarted,victor = nil,nil,nil
+		table.clear(roster)
+		tournament,duel,heat,practiceMode,privateRound = false,false,0,false,false
+		mapPlan,draftStarted,victor,championship = nil,nil,nil,nil
 		entrants,slots,resultCount = 0,0,0
+		raceMode = "royale"
 		phase("Lobby")
-		repeat task.wait(0.2) until next(queue) or next(practiceQueue)
-		local group
-		if next(queue) then
-			phase("Intermission",Config.intermission)
-			while now(workspace) < deadline and queuedCount() < Config.maxPlayers and next(queue) do task.wait(0.12) end
-			group = ready(queue)
-			for i=#group,Config.maxPlayers+1,-1 do group[i]=nil end
-			if #group >= 2 then
-				runTournament(group)
-			elseif #group == 1 then
-				runHeat(group,selected[group[1]] or 1,1,false)
-			end
+		local ticket, adventurer
+		repeat
+			task.wait(0.2)
+			ticket,adventurer = nextActivity()
+		until ticket or adventurer
+		if adventurer then
+			practiceMode,raceMode = true,"adventure"
+			runHeat({adventurer},practiceQueue[adventurer].map,1,false)
+		elseif ticket.private then
+			privateRound,raceMode = true,"quick"
+			runHeat(ticket.group,ticket.map or 1,#ticket.group,false)
 		else
-			group = ready(practiceQueue)
-			local player = group[1]
-			if player then
-				practiceMode = true
-				runHeat({player},practiceQueue[player],1,false)
+			raceMode = ticket.mode
+			phase("Intermission",Config.intermission)
+			while now(workspace) < deadline and queuedCount(ticket) < Config.maxPlayers and queuedCount(ticket) > 0 do
+				task.wait(0.12)
+			end
+			local group = buildGroup(ticket)
+			if #group >= 2 and ticket.mode == "royale" then
+				runTournament(group)
+			elseif #group > 0 then
+				raceMode = "quick"
+				if ticket.mode == "royale" then send(group[1],"Notice","Only one racer joined. Starting Quick Race.") end
+				local first = queue[group[1]]
+				runHeat(group,(first and first.map) or selected[group[1]] or 1,#group,false)
 			end
 		end
 	end

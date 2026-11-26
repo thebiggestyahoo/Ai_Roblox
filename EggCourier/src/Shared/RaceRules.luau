@@ -9,47 +9,53 @@ function Rules.crossing(previous, current, line, center, width, minY, maxY)
 	return nil
 end
 
-local cuts = {12, 9, 6, 3, 2}
-Rules.heatCount = #cuts
+local cuts = {12, 9, 6, 3}
+Rules.heatCount = #cuts + 1
 
 function Rules.slots(starting, heat, remaining)
 	local cut = cuts[heat]
-	if not cut then return 1 end
-	return math.min(remaining, math.max(2, math.ceil(starting * cut / 15)))
+	if not cut then return math.min(remaining,1) end
+	return math.min(remaining, math.max(2, math.ceil(starting*cut/15)))
 end
 
-function Rules.drawMaps(random)
-	local opening = random:NextInteger(1,2)
-	-- The catalog is ordered by difficulty. Draw three distinct middle courses.
-	local middle = {3,4,5,6,7}
-	for i=1,3 do
-		local j = random:NextInteger(i,#middle)
-		middle[i], middle[j] = middle[j], middle[i]
+function Rules.drawMaps(random, levels)
+	local candidates = {}
+	for index, info in ipairs(levels) do
+		if index ~= levels.final then
+			table.insert(candidates,{index=index,stars=info.stars or 1,seed=random:NextNumber()})
+		end
 	end
-	local chosen = {middle[1],middle[2],middle[3]}
-	table.sort(chosen)
-	return {opening,chosen[1],chosen[2],chosen[3],random:NextInteger(8,9)}
+	table.sort(candidates,function(a,b)
+		if a.stars ~= b.stars then return a.stars < b.stars end
+		if a.seed ~= b.seed then return a.seed < b.seed end
+		return a.index < b.index
+	end)
+	assert(#candidates >= #cuts, "Egg Royale needs four qualifier maps")
+	local maps = {}
+	for heat = 1,#cuts do
+		local min = math.floor((heat-1)*#candidates/#cuts)+1
+		local max = math.floor(heat*#candidates/#cuts)
+		maps[heat] = candidates[random:NextInteger(min,max)].index
+	end
+	maps[Rules.heatCount] = assert(levels.final, "Egg Royale needs a championship map")
+	return maps
 end
 
 function Rules.recordKey(level)
-	return "knockout:remix:" .. level
+	return "adventure:v1:" .. level
 end
 
-function Rules.complete(data, level, time, perfect, place, competitive)
-	local record = Rules.recordKey(level)
-	local personal = not data.records[record] or time < data.records[record]
-	if personal then data.records[record] = time end
-	local reward = 50 + (perfect and 25 or 0)
-	if competitive then
-		reward += ({100,75,50})[place] or 0
-		if place == 1 then data.wins += 1 end
-	end
-	if data.unlocked == level then
-		data.unlocked += 1
-		if level == 5 then reward += 500 end
-	end
-	data.xp += 30 + (perfect and 10 or 0)
-	data.coins += reward
-	return reward, personal
+function Rules.rank(entries)
+	table.sort(entries,function(a,b)
+		if a.finishPlace ~= b.finishPlace then
+			return (a.finishPlace or math.huge) < (b.finishPlace or math.huge)
+		end
+		if a.active ~= b.active then return a.active end
+		if a.progress ~= b.progress then return a.progress > b.progress end
+		if a.hp ~= b.hp then return a.hp > b.hp end
+		return a.userId < b.userId
+	end)
+	return entries
 end
+
 return Rules

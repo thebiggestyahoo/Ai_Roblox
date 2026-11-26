@@ -12,11 +12,15 @@ C.practiceRestartDelay = 1.25
 C.audio = {
 	Music = 0, Countdown = 0, Start = 0, Crack = 0, Break = 0, Out = 0, Restart = 0,
 	Coins = 0, Shove = 0, Finish = 0, Victory = 0, Click = 0,
+	CartonCommon = 0, CartonUncommon = 0, CartonRare = 0,
+	CartonEpic = 0, CartonLegendary = 0, CartonMythic = 0,
 }
+-- Upload the original loops and cues from tools/compose_audio.py; use 0 for unavailable assets.
+C.worldMusic = {temple=0, pirate=0, prehistoric=0, factory=0, frozen=0, cloud=0, neon=0, galactic=0}
 C.passes = {Golden = 0, Rainbow = 0, Galaxy = 0, Royal = 0, VIP = 0}
--- Set productId to the matching repeatable Developer Product ID in Creator Dashboard.
--- The Roblox purchase prompt displays the actual price. Keep disabled products at 0.
-C.coinPacks = {
+-- Historical IDs only. Pending receipts credit the fixed-price trail balance.
+-- This configuration does not enable a coin pack store.
+C.legacyCoinProducts = {
 	{key = "starter", name = "Starter pack", coins = 400, suggestedRobux = 29, productId = 0},
 	{key = "courier", name = "Courier pack", coins = 1000, suggestedRobux = 59, productId = 0},
 	{key = "collector", name = "Collector pack", coins = 2400, suggestedRobux = 119, productId = 0},
@@ -36,47 +40,9 @@ C.skins = {
 	{"Royal", "Royal Egg", false, {157, 54, 178}, {255, 212, 74}},
 	{"VIP", "VIP Egg Courier", false, {75, 234, 221}, {255, 221, 99}},
 }
-C.suggestedPrices = {Golden = 49, Rainbow = 79, Galaxy = 99, Royal = 149, VIP = 199}
 C.trails = {Lightning = 600, Rainbow = 900}
 C.titles = {"Rookie Courier", "Egg Protector", "Professional Deliverer", "Egg Master", "Egg Legend"}
 C.titleXP = {0, 100, 300, 650, 1500}
-C.boxes = {
-	{id = "field", name = "Field Box", color = "a8e378", rewards = {
-		{id = "Chocolate", rarity = "Common", deliveries = 1},
-		{id = "Watermelon", rarity = "Common", deliveries = 3},
-	}},
-	{id = "hazard", name = "Hazard Box", color = "7ed8fb", rewards = {
-		{id = "Ninja", rarity = "Rare", deliveries = 5},
-		{id = "Dinosaur", rarity = "Rare", deliveries = 8},
-	}},
-	{id = "elemental", name = "Elemental Box", color = "d2a6ff", rewards = {
-		{id = "Frozen", rarity = "Epic", deliveries = 12},
-		{id = "Lava", rarity = "Legendary", deliveries = 16},
-	}},
-}
-
-function C.boxStatus(box, skins, deliveries)
-	local ready, nextReward, remaining = {}, nil, 0
-	for _, reward in ipairs(box.rewards) do
-		if not skins[reward.id] then
-			remaining += 1
-			if deliveries >= reward.deliveries then
-				table.insert(ready, reward)
-			elseif not nextReward then
-				nextReward = reward
-			end
-		end
-	end
-	return ready, nextReward, remaining
-end
-
 C.bySkin = {}
 for _, skin in C.skins do C.bySkin[skin[1]] = skin end
-C.boxById, C.boxBySkin = {}, {}
-for _, box in ipairs(C.boxes) do
-	C.boxById[box.id] = box
-	for _, reward in ipairs(box.rewards) do
-		C.boxBySkin[reward.id] = {name = box.name, rarity = reward.rarity}
-	end
-end
 return C

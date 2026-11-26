@@ -6,9 +6,9 @@ local Obstacles = require(script.Parent.Obstacles)
 
 local World = {}
 local color = Color3.fromHex
-local tar = color("28343b")
+local tar = color("3e4267")
 local dark = color("151f25")
-local slate = color("3f5258")
+local slate = color("585887")
 local bone = color("f4ebd4")
 local yolk = color("ffbb39")
 local teal = color("4ed1b2")
@@ -192,7 +192,10 @@ local function hangar(parent, action)
 	for _, side in {-1,1} do
 		beam(hall,"Cradle bracket",Vector3.new(side*5.2,14.3,23),Vector3.new(side*4.2,18,23),0.44,dark,Enum.Material.Metal)
 	end
-	prompt(hall,Vector3.new(0,3,19),"Enter race","Race Gate","queue",action)
+	prompt(hall,Vector3.new(-6.2,3,19),"Join Egg Royale","Race Gate","queue",action)
+	prompt(hall,Vector3.new(6.2,3,19),"Join Quick Race","Race Gate","quick",action)
+	sign(hall,"Royale arrow",Vector3.new(-6.2,5,16),Vector2.new(8,1.4),"EGG ROYALE",coral,dark)
+	sign(hall,"Quick arrow",Vector3.new(6.2,5,16),Vector2.new(8,1.4),"QUICK RACE",teal,dark)
 end
 
 local function shop(parent, action)
@@ -220,7 +223,7 @@ local function shop(parent, action)
 		prop:PivotTo(CFrame.new(x+address,3.85,z+2.4)*CFrame.Angles(0,i*0.7,0))
 		prop.Parent = kiosk
 	end
-	prompt(kiosk,Vector3.new(x,2.5,z-3.7),"Eggs and reward boxes","Egg Locker","Shop",action)
+	prompt(kiosk,Vector3.new(x,2.5,z-3.7),"Browse eggs and cartons","Egg Locker","Shop",action)
 end
 
 local function warmup(parent, action)
@@ -247,65 +250,71 @@ local function warmup(parent, action)
 	end
 	local demo = {model = zone, obstacles = {}}
 	Obstacles.add(demo,"sweep",Vector3.new(x-1.8,0.58,z+3.0),1,{damage=false,size=Vector3.new(10,0.75,0.9),speed=1.9})
-	prompt(zone,Vector3.new(x,2.5,z-5.1),"Start practice","Warmup Bay","practice",action)
+	prompt(zone,Vector3.new(x,2.5,z-5.1),"Explore in Adventure","Warmup Bay","practice",action)
 	return demo
+end
+
+local function miniature(parent, world, center)
+	local land, accent = color(world.color), color(world.accent)
+	local function modelPart(name, x, y, z, width, height, depth, tint, shape, tilt)
+		return part(parent,name,Vector3.new(width,height,depth),
+			CFrame.new(center+Vector3.new(x,y,z))*CFrame.Angles(0,0,tilt or 0),tint,nil,false,shape)
+	end
+	modelPart(world.name.." map tile",0,0,0,4.9,0.34,4.4,land)
+	if world.key == "temple" then
+		for i=1,3 do modelPart("Temple terrace",0,i*0.38,0,3.2-i*0.52,0.42,2.7-i*0.42,accent) end
+		modelPart("Temple door",0,0.61,-0.97,0.67,0.94,0.12,dark)
+	elseif world.key == "pirate" then
+		modelPart("Hidden ship hull",0,0.52,0,3.6,0.62,1,accent)
+		modelPart("Mast",0,1.35,0,0.16,1.8,0.16,dark)
+		modelPart("Sail",0.42,1.5,-0.08,0.94,0.82,0.12,bone,nil,-0.2)
+	elseif world.key == "prehistoric" then
+		for i=-1,1 do
+			modelPart("Giant fern",i*1.04,0.74,i*0.46,1.26,1.12,1.22,i==0 and accent or teal,Enum.PartType.Ball)
+		end
+		modelPart("Amber fossil",0.58,0.39,-1.15,0.72,0.66,0.64,accent,Enum.PartType.Ball)
+	elseif world.key == "factory" then
+		modelPart("Candy mixer vat",0,0.61,0,2.55,0.87,2.27,accent)
+		modelPart("Copper chimney",-0.75,1.6,0.26,0.57,1.4,0.55,coral,nil,-0.19)
+		modelPart("Candy batch",0.76,1.28,-0.28,0.95,0.82,0.91,bone,Enum.PartType.Ball)
+	elseif world.key == "frozen" or world.key == "cloud" then
+		for i=-1,1 do
+			local height = 1.85-math.abs(i)*0.46
+			modelPart(world.key=="cloud" and "Drifting cloud" or "Glacier peak",i*0.92,height*0.51,0,
+				1.14,height,1.32,i%2==0 and bone or accent,world.key=="cloud" and Enum.PartType.Ball or nil,i*0.31)
+		end
+	elseif world.key == "neon" then
+		for i=-1,1 do
+			local height = 1.85-math.abs(i)*0.47
+			modelPart("Neon tower",i*1.04,height/2,0,0.8,height,1.04,accent)
+			modelPart("Signal windows",i*1.04,height/2,-0.56,0.11,height*0.76,0.08,dark)
+		end
+	else
+		modelPart("Orbiting station",0,1.25,0,1.5,1.5,1.5,accent,Enum.PartType.Ball)
+		modelPart("Solar vanes",0,1.12,0,3.28,0.12,0.57,bone,nil,0.21)
+	end
 end
 
 local function islandDesk(parent, action)
 	local display = Instance.new("Folder")
-	display.Name = "Island Atlas"
+	display.Name = "Adventure Atlas"
 	display.Parent = parent
-	local tint = color("96afe4")
+	local tint = color("b7abff")
 	local x,z = 36,25
 	platform(display,"Atlas platform",x,z,25,17,tar,tint)
 	box(display,"Atlas backboard",Vector3.new(x,4.4,z+7.6),Vector3.new(24,8.8,0.5),slate,Enum.Material.Metal,true)
-	sign(display,"Atlas sign",Vector3.new(x,7.4,z+7.15),Vector2.new(20,2.8),"ISLAND ATLAS",tint,dark)
-	box(display,"Model table",Vector3.new(x,1.95,z+2.4),Vector3.new(22,2.8,5.4),dark,Enum.Material.Metal,true)
-	local islandColors = {color("729b4a"),coral,color("8bebf1"),color("b585ec"),color("c6a47a")}
-	local islands = {}
-	local seen = {}
-	for _, level in ipairs(Levels) do
-		local island = level.island
-		if island and not seen[island] then
-			table.insert(islands,island)
-			seen[island] = true
-		end
+	sign(display,"Atlas sign",Vector3.new(x,7.4,z+7.15),Vector2.new(20,2.8),"ADVENTURE ATLAS",tint,dark)
+	box(display,"Model table",Vector3.new(x,1.72,z+2.3),Vector3.new(23,2.3,9.5),dark,Enum.Material.Metal,true)
+	for i, world in ipairs(Levels.worlds) do
+		local column = (i-1)%4
+		local row = (i-1)//4
+		local pos = x+(column-1.5)*5.45
+		local center = Vector3.new(pos,3.08+row*0.36,z+row*4.65)
+		miniature(display,world,center)
+		sign(display,world.key.." nameplate",center+Vector3.new(0,0.06,-2.25),Vector2.new(4.9,0.63),
+			world.name,dark,color(world.accent),Enum.Font.GothamBold)
 	end
-	for i, island in islands do
-		local pos = x+(i-(#islands+1)/2)*4.32
-		local islandColor = islandColors[i] or tint
-		local center = Vector3.new(pos,3.5,z+2.6)
-		box(display,"Model island base",center,Vector3.new(4.08,0.32,3.8),islandColor,Enum.Material.Slate)
-		if i == 1 then
-			box(display,"Mini course",center+Vector3.new(0,0.72,0),Vector3.new(2.8,0.94,1.65),yolk,Enum.Material.Fabric)
-			box(display,"Mini finish arch",center+Vector3.new(1.4,1.48,0),Vector3.new(0.26,2.1,1.68),coral)
-		elseif i == 2 then
-			part(display,"Foundry volcano",Vector3.new(2.1,2.6,1.85),
-				CFrame.new(center+Vector3.new(0,1.12,0))*CFrame.Angles(0,0,-0.24),slate,Enum.Material.Basalt)
-			box(display,"Foundry lava",center+Vector3.new(0,2.47,0),Vector3.new(1.45,0.12,1.28),coral,Enum.Material.Neon)
-		elseif i == 3 then
-			for j=-1,1 do
-				part(display,"Glacier shard",Vector3.new(0.85,2.0-math.abs(j)*0.45,1.1),
-					CFrame.new(center+Vector3.new(j*0.8,0.97,0))*CFrame.Angles(0,0,math.rad(j*24)),islandColor,Enum.Material.Ice)
-			end
-		elseif i == 4 then
-			part(display,"Orbital relay",Vector3.new(1.8,1.8,1.8),
-				CFrame.new(center+Vector3.new(0,1.42,0)),islandColor,Enum.Material.Neon,false,Enum.PartType.Ball)
-			beam(display,"Relay antenna",center+Vector3.new(0,0.18,0),center+Vector3.new(0,1.25,0),0.27,bone)
-		else
-			for _, side in {-1,1} do
-				box(display,"Ruins altar column",center+Vector3.new(side*1.05,0.85,0),Vector3.new(0.42,1.55,0.53),
-					islandColor,Enum.Material.Sandstone)
-			end
-			box(display,"Ruins altar lintel",center+Vector3.new(0,1.61,0),Vector3.new(2.73,0.37,0.84),islandColor,Enum.Material.Sandstone)
-			local relic = EggModel.build("Golden",0.63,true)
-			relic.Name = "Model relic"
-			relic:PivotTo(CFrame.new(center+Vector3.new(0,0.65,-0.62)))
-			relic.Parent = display
-		end
-		sign(display,island.." nameplate",Vector3.new(pos,1.92,z-0.58),Vector2.new(4.1,1.25),island,dark,islandColor,Enum.Font.GothamBold)
-	end
-	prompt(display,Vector3.new(x,2.5,z-3.6),"View courses","Island Atlas","Courses",action)
+	prompt(display,Vector3.new(x,2.5,z-4.4),"Explore worlds","Adventure Atlas","Courses",action)
 end
 
 local function scoreboard(parent)

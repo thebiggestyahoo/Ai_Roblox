@@ -42,6 +42,11 @@ local definitions = {
 	snowball = {size = Vector3.new(5, 5, 5), y = 2.5, range = 10, speed = 1.5, damage = 1, shape = Enum.PartType.Ball},
 	gravity = {size = Vector3.new(17, 12, 12), y = 6, speed = 105},
 	pulse = {size = Vector3.new(14, 0.22, 5), y = 0.13, period = 3.8, open = 1.25, damage = 1},
+	wind = {size = Vector3.new(10, 10, 14), y = 5, speed = 22},
+	slide = {size = Vector3.new(10, 10, 14), y = 5, speed = 25},
+	gate = {size = Vector3.new(9, 5, 1.2), y = 2.5, solid = true, period = 6.4, open = 3.5, range = 6.2},
+	spin = {size = Vector3.new(1.4, 12, 12), solid = true, speed = 0.7, shape = Enum.PartType.Cylinder},
+	sentry = {size = Vector3.new(7, 5.8, 4.8), y = 2.9, range = 7.7, period = 8.6, open = 3.7, damage = 1},
 	boulder = {size = Vector3.new(8.8, 8.8, 8.8), y = 4.4, range = 18, period = 6.15, travel = 3.2, damage = 1, shape = Enum.PartType.Ball},
 }
 O.definitions = definitions
@@ -67,7 +72,8 @@ local function buildRideable(course, item)
 
 	local slides = item.kind == "moving"
 	local axis = if slides then d.axis or Vector3.xAxis else Vector3.zAxis
-	local mount = CFrame.fromMatrix(Vector3.zero,axis,Vector3.yAxis)
+	local perpendicular = if axis == Vector3.yAxis then Vector3.zAxis else Vector3.yAxis
+	local mount = CFrame.fromMatrix(Vector3.zero,axis,perpendicular)
 	local fixedAttachment = Instance.new("Attachment",guide)
 	fixedAttachment.CFrame = mount
 	local deckAttachment = Instance.new("Attachment",platform)
@@ -103,6 +109,26 @@ local function buildRideable(course, item)
 	item.actuator = actuator
 end
 
+local function buildSpin(course, item)
+	local platform, base, d = item.part, item.base, item.d
+	local guide = make(course.model,"Carousel axle",Vector3.one,base,platform.Color,false)
+	guide.Transparency, guide.CanQuery, guide.CastShadow = 1, false, false
+	local bearing = Instance.new("Attachment",guide)
+	bearing.CFrame = CFrame.fromMatrix(Vector3.zero,Vector3.yAxis,Vector3.zAxis)
+	local floorBearing = Instance.new("Attachment",platform)
+	-- The cylinder's positive X axis becomes world Y when it stands upright.
+	floorBearing.CFrame = CFrame.fromMatrix(Vector3.zero,Vector3.xAxis,Vector3.zAxis)
+	platform.CFrame = base*CFrame.Angles(0,0,math.pi/2)
+	local motor = Instance.new("HingeConstraint",platform)
+	motor.Name = "Carousel motor"
+	motor.Attachment0, motor.Attachment1 = bearing, floorBearing
+	motor.ActuatorType = Enum.ActuatorType.Motor
+	motor.AngularVelocity, motor.MotorMaxTorque = d.speed, 110000
+	platform.CustomPhysicalProperties = PhysicalProperties.new(1,0.9,0,80,100)
+	platform.Anchored = false
+	item.actuator = motor
+end
+
 -- A returning floor can catch someone landing on top. Wait a full cycle
 -- instead if it would spawn around someone already falling through its space.
 local function overlapsFallingRacer(part, racers)
@@ -130,10 +156,19 @@ function O.add(course, kind, origin, phase, overrides)
 	local p = make(course.model, kind, d.size, cf, d.color or palette[math.floor(phase) % 3 + 1], d.solid == true, d.shape)
 	if not d.solid then p.CanQuery = false end
 	local item = {kind = kind, part = p, base = cf, phase = phase, d = d}
-	if kind == "moving" or kind == "tilt" then buildRideable(course,item) end
+	if kind == "moving" or kind == "tilt" then buildRideable(course,item)
+	elseif kind == "spin" then buildSpin(course,item) end
 	if kind == "ice" then p.CustomPhysicalProperties = PhysicalProperties.new(1, 0.015, 0) end
-	if kind == "conveyor" then p.AssemblyLinearVelocity = Vector3.new(0, 0, d.speed) end
-	if kind == "gravity" then p.Transparency = 0.8 end
+	if kind == "conveyor" then p.AssemblyLinearVelocity = (d.axis or Vector3.zAxis)*d.speed end
+	if kind == "gravity" or kind == "wind" or kind == "slide" then
+		p.Transparency, p.CastShadow = 0.91, false
+	end
+	if kind == "gate" or kind == "sentry" then
+		item.signal = make(course.model,"Timing signal",Vector3.new(d.size.X,0.06,1.7),
+			CFrame.new(origin + Vector3.new(0,0.06,-2.6)),tileSafe,false)
+		item.signal.Material = Enum.Material.Neon
+		item.signal.CanQuery = false
+	end
 	if kind == "pulse" then p.Material = Enum.Material.Neon end
 	if kind == "boulder" then
 		p.Material = Enum.Material.Slate
@@ -174,7 +209,7 @@ function O.update(course, age, racers, damage)
 		local s = math.sin(t)
 		if o.actuator then
 			if kind == "moving" then o.actuator.TargetPosition = s*d.range
-			else o.actuator.TargetAngle = math.deg(s*d.range) end
+			elseif kind == "tilt" then o.actuator.TargetAngle = math.deg(s*d.range) end
 			continue
 		end
 		local active = true
@@ -226,9 +261,32 @@ function O.update(course, age, racers, damage)
 			p.Transparency = if active then 0 elseif warning then 0.65 else 1
 			o.warning.Transparency = if warning then 0 else 1
 		elseif kind == "door" then p.CFrame = o.base + Vector3.new(0, (s + 1) * d.range / 2, 0)
+		elseif kind == "gate" or kind == "sentry" then
+			local cycle = (age+o.phase)%d.period
+			local amount = if cycle < d.open then math.min(cycle/0.65,(d.open-cycle)/0.65,1) else 0
+			if kind == "gate" then
+				p.CFrame = o.base + Vector3.yAxis*amount*d.range
+				-- The moving door is a readable wait, never a crushing hazard.
+				p.CanCollide = amount < 0.82 and not overlapsFallingRacer(p,racers)
+			else
+				active = cycle < d.open
+				local walk = math.clamp(cycle/d.open,0,1)
+				p.CFrame = o.base + Vector3.xAxis*d.range*(1-2*walk)
+				p.Transparency = if active then 0.1 elseif cycle > d.period-1.1 then 0.72 else 1
+				for _, detail in ipairs(o.details or {}) do
+					detail.part.CFrame = p.CFrame*detail.offset
+					detail.part.Transparency = p.Transparency
+				end
+			end
+			if kind == "gate" then
+				o.signal.Color = if amount > 0.81 then tileSafe elseif cycle > d.period-1 or cycle < d.open then pulseWarning else pulseLive
+			else
+				o.signal.Color = if active then pulseLive elseif cycle > d.period-1.1 then pulseWarning else tileSafe
+			end
 		end
 		if not active then continue end
-		if not d.damage and kind ~= "launch" and kind ~= "gravity" then continue end
+		local forceZone = kind == "gravity" or kind == "wind" or kind == "slide"
+		if not d.damage and kind ~= "launch" and not forceZone then continue end
 		for player, racer in racers do
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			if not root or root.Anchored or racer.finished or racer.out or racer.recovering then continue end
@@ -252,9 +310,9 @@ function O.update(course, age, racers, damage)
 				end
 				if hit then damage(player, racer, d.damage, p) end
 			elseif math.abs(localPos.X) <= half.X and math.abs(localPos.Z) <= half.Z then
-				if kind == "launch" and localPos.Y > 0 and localPos.Y < 3.4 and root.AssemblyLinearVelocity.Y <= 1 then
+				if kind == "launch" and localPos.Y > 0 and localPos.Y < 5 and root.AssemblyLinearVelocity.Y <= 1 then
 					root.AssemblyLinearVelocity += Vector3.new(0, d.speed, 0)
-				elseif kind == "gravity" and math.abs(localPos.Y) < half.Y then
+				elseif forceZone and math.abs(localPos.Y) < half.Y then
 					local force = root:FindFirstChild("CourseLift")
 					if not force then
 						local attachment = Instance.new("Attachment", root)
@@ -265,7 +323,8 @@ function O.update(course, age, racers, damage)
 						force.RelativeTo = Enum.ActuatorRelativeTo.World
 						force.ApplyAtCenterOfMass = true
 					end
-					force.Force = Vector3.yAxis * d.speed * root.AssemblyMass
+					local axis = if kind == "gravity" then Vector3.yAxis elseif kind == "slide" then Vector3.zAxis else d.axis or Vector3.xAxis
+					force.Force += axis * d.speed * root.AssemblyMass
 					course.gravityApplied = course.gravityApplied or {}
 					course.gravityApplied[root] = true
 				end

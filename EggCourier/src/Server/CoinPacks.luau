@@ -5,10 +5,9 @@ local Config = require(Shared.Config)
 local Data = require(script.Parent.Data)
 
 local CoinPacks = {}
-local byKey, byProduct = {}, {}
+local byProduct = {}
 
-for _, pack in Config.coinPacks do
-	byKey[pack.key] = pack
+for _, pack in Config.legacyCoinProducts do
 	local id = pack.productId
 	if typeof(id) == "number" and id > 0 and id % 1 == 0
 		and typeof(pack.coins) == "number" and pack.coins > 0 and pack.coins % 1 == 0 then
@@ -19,14 +18,6 @@ for _, pack in Config.coinPacks do
 			byProduct[id] = pack
 		end
 	end
-end
-
-function CoinPacks.prompt(player, packKey)
-	local pack = byKey[packKey]
-	if pack and byProduct[pack.productId] == pack and player.Parent == Players and Data.canPurchase(player) then
-		return pack.productId
-	end
-	return nil
 end
 
 function CoinPacks.start(onChanged)
